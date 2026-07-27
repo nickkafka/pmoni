@@ -29,6 +29,28 @@ class SqlAlchemyDeviceRepository(DeviceRepository, DeviceCredentialsStore):
         records = self._session.scalars(select(DeviceRecord).where(DeviceRecord.enabled.is_(True)).order_by(DeviceRecord.name))
         return [self._to_entity(record) for record in records]
 
+    def update(self, device: Device, encrypted_credentials: str | None) -> Device | None:
+        if device.id is None:
+            return None
+        record = self._session.get(DeviceRecord, device.id)
+        if record is None:
+            return None
+        record.name, record.host, record.port = device.name, device.host, device.port
+        record.username, record.model, record.enabled = device.username, device.model, device.enabled
+        if encrypted_credentials is not None:
+            record.credentials_encrypted = encrypted_credentials
+        self._session.commit()
+        self._session.refresh(record)
+        return self._to_entity(record)
+
+    def remove(self, device_id: int) -> bool:
+        record = self._session.get(DeviceRecord, device_id)
+        if record is None:
+            return False
+        self._session.delete(record)
+        self._session.commit()
+        return True
+
     def get_encrypted_credentials(self, device_id: int) -> str | None:
         record = self._session.get(DeviceRecord, device_id)
         return record.credentials_encrypted if record else None

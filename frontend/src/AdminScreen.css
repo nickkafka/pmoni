@@ -132,6 +132,13 @@
   margin-top: 2px;
 }
 
+.devices__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 /* Filters --------------------------------------------------------------- */
 
 .filters {
@@ -227,6 +234,19 @@
   background: var(--placeholder);
 }
 
+.thumb-zoom {
+  position: fixed;
+  width: 255px;
+  height: 340px;
+  object-fit: cover;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  box-shadow: 0 18px 40px rgb(0 0 0 / 45%);
+  background: var(--placeholder);
+  pointer-events: none;
+  z-index: 20;
+}
+
 /* Controls -------------------------------------------------------------- */
 
 .field {
@@ -275,4 +295,12 @@
   background: var(--accent);
   border-color: var(--accent);
   color: #fff;
+}
+
+.button--danger {
+  color: var(--denied);
+}
+
+.button--danger:hover:not(:disabled) {
+  border-color: var(--denied);
 }

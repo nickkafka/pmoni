@@ -21,6 +21,10 @@ function initialsOf(name: string): string {
   return letters.map((part) => part[0]?.toUpperCase() ?? '').join('')
 }
 
+function deviceOf(event: AccessEventMessage): string {
+  return event.device?.name ?? `Equipamento ${event.device_id}`
+}
+
 function locationOf(event: AccessEventMessage): string | null {
   const resident = event.resident
   if (!resident?.apartment) return null
@@ -64,8 +68,11 @@ function CurrentEvent({ event }: { event: AccessEventMessage }) {
             {resident ? 'Apartamento não cadastrado' : `Matrícula ${event.employee_no ?? '—'}`}
           </p>
         )}
-        <p className={`current__verdict current__verdict--${event.success ? 'granted' : 'denied'}`}>
-          {event.success ? 'Acesso liberado' : 'Acesso negado'}
+        <p className="current__badges">
+          <span className={`current__verdict current__verdict--${event.success ? 'granted' : 'denied'}`}>
+            {event.success ? 'Acesso liberado' : 'Acesso negado'}
+          </span>
+          <span className="current__device">{deviceOf(event)}</span>
         </p>
         <p className="current__meta">
           {timeOf(event)}
@@ -83,9 +90,10 @@ function History({ events }: { events: AccessEventMessage[] }) {
       <span className="history__label">Anteriores</span>
       <ul className="history__list">
         {events.map((event) => (
-          <li key={event.external_id} className="history__item">
+          <li key={`${event.device_id}:${event.external_id}`} className="history__item">
             <Photo event={event} size="small" />
             <span className="history__name">{event.resident?.name ?? 'Não cadastrado'}</span>
+            <span className="history__device">{deviceOf(event)}</span>
             <span className="history__time">{timeOf(event)}</span>
           </li>
         ))}

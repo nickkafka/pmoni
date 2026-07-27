@@ -6,6 +6,7 @@ from app.core.config import settings
 from app.core.logger import logger
 from app.database.database import SessionLocal
 from app.hikvision.factory import HikvisionClientFactory
+from app.infrastructure.persistence.device_lookup import SessionScopedDeviceLookup
 from app.infrastructure.persistence.device_repository import SqlAlchemyDeviceRepository
 from app.infrastructure.persistence.resident_lookup import SessionScopedResidentLookup
 from app.infrastructure.security import FernetCredentialCipher
@@ -31,7 +32,9 @@ class ApplicationRuntime:
         self.device_manager = DeviceManager(repository, HikvisionClientFactory(repository, cipher))
         await self.device_manager.start()
         self.access_events = AccessEventEnricher(
-            self.device_manager, SessionScopedResidentLookup(SessionLocal)
+            self.device_manager,
+            SessionScopedResidentLookup(SessionLocal),
+            SessionScopedDeviceLookup(SessionLocal),
         )
         await self.access_events.start()
         app.state.device_manager = self.device_manager

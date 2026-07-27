@@ -7,6 +7,11 @@ export type ResidentMessage = {
   photo_url: string | null
 }
 
+export type DeviceMessage = {
+  id: number
+  name: string
+}
+
 export type AccessEventMessage = {
   external_id: string
   device_id: number
@@ -16,6 +21,7 @@ export type AccessEventMessage = {
   event_time: string
   snapshot: string | null
   resident: ResidentMessage | null
+  device: DeviceMessage | null
 }
 
 /** `unavailable` means the backend is up but has no monitoring configured. */

@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 import unittest
 
-from app.domain.entities.access_event import AccessEvent, EnrichedAccessEvent
+from app.domain.entities.access_event import AccessEvent, DeviceSummary, EnrichedAccessEvent
 from app.domain.entities.resident import ResidentSummary
 from app.websocket.access_events import _event_message
 
@@ -29,6 +29,16 @@ class AccessEventWebSocketTests(unittest.TestCase):
 
     def test_reports_an_unknown_person_as_a_null_resident(self) -> None:
         self.assertIsNone(_event_message(EnrichedAccessEvent(EVENT, None))["data"]["resident"])
+
+    def test_names_the_device_the_person_walked_through(self) -> None:
+        enriched = EnrichedAccessEvent(EVENT, None, DeviceSummary(5, "Portaria social"))
+
+        message = _event_message(enriched)["data"]["device"]
+
+        self.assertEqual(message, {"id": 5, "name": "Portaria social"})
+
+    def test_reports_an_unresolved_device_as_null(self) -> None:
+        self.assertIsNone(_event_message(EnrichedAccessEvent(EVENT, None))["data"]["device"])
 
     def test_omits_the_photo_url_when_no_photo_was_synced(self) -> None:
         resident = ResidentSummary(52, "SIGMA-42", "nk", "301", "A", False)

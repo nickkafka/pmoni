@@ -4,7 +4,7 @@ from contextlib import suppress
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from app.application.services.access_event_enricher import AccessEventEnricher
-from app.domain.entities.access_event import EnrichedAccessEvent
+from app.domain.entities.access_event import DeviceSummary, EnrichedAccessEvent
 from app.domain.entities.resident import ResidentSummary
 
 router = APIRouter()
@@ -57,8 +57,13 @@ def _event_message(enriched: EnrichedAccessEvent) -> dict:
             "event_time": event.event_time.isoformat(),
             "snapshot": event.snapshot,
             "resident": _resident_message(enriched.resident),
+            "device": _device_message(enriched.device),
         },
     }
+
+
+def _device_message(device: DeviceSummary | None) -> dict | None:
+    return None if device is None else {"id": device.id, "name": device.name}
 
 
 def _resident_message(resident: ResidentSummary | None) -> dict | None:

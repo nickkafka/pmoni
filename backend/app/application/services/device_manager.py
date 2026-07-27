@@ -1,5 +1,6 @@
 import asyncio
-from collections.abc import Mapping
+from collections.abc import Collection, Mapping
+from contextlib import suppress
 from dataclasses import dataclass
 from enum import StrEnum
 
@@ -9,6 +10,12 @@ from app.application.ports.device_repository import DeviceRepository
 from app.application.services.event_broadcaster import EventBroadcaster
 from app.core.logger import logger
 from app.domain.entities.access_event import AccessEvent
+from app.domain.entities.device import Device
+
+
+def _signature(device: Device) -> tuple:
+    """Everything a supervisor has to be rebuilt for when it changes."""
+    return (device.host, device.port, device.username, device.enabled)
 
 
 class DeviceConnectionState(StrEnum):
@@ -44,6 +51,7 @@ class DeviceManager:
         self._tasks: dict[int, asyncio.Task[None]] = {}
         self._states: dict[int, DeviceConnectionState] = {}
         self._reconnect_attempts: dict[int, int] = {}
+        self._signatures: dict[int, tuple] = {}
         self._broadcaster: EventBroadcaster[AccessEvent] = EventBroadcaster()
         self._running = False
         self._lifecycle_lock = asyncio.Lock()
@@ -54,23 +62,21 @@ class DeviceManager:
             if self._running:
                 return
             self._running = True
-            for device in self._repository.list_enabled():
-                if device.id is None:
-                    logger.warning("Dispositivo sem identificador foi ignorado: {}", device.name)
-                    continue
-                try:
-                    client = self._client_factory.create(device)
-                except Exception:
-                    self._states[device.id] = DeviceConnectionState.ERROR
-                    self._reconnect_attempts[device.id] = 0
-                    logger.exception("Não foi possível preparar o dispositivo {}.", device.id)
-                    continue
-                self._states[device.id] = DeviceConnectionState.STOPPED
-                self._reconnect_attempts[device.id] = 0
-                self._tasks[device.id] = asyncio.create_task(
-                    self._supervise(client), name=f"device-supervisor-{device.id}"
-                )
+            await self._reconcile()
         logger.info("DeviceManager iniciado com {} dispositivo(s).", len(self._tasks))
+
+    async def refresh(self, *, restart: Collection[int] = ()) -> None:
+        """Adopt devices registered, changed or removed after the supervisors started.
+
+        Without this, a device added through the API would only be monitored after
+        restarting the application. Identifiers in ``restart`` are always rebuilt,
+        which covers a credential change the repository signature cannot reveal.
+        """
+        async with self._lifecycle_lock:
+            if not self._running:
+                return
+            await self._reconcile(restart)
+        logger.info("DeviceManager supervisionando {} dispositivo(s).", len(self._tasks))
 
     async def stop(self) -> None:
         """Cancel all supervisors and close their clients without leaking tasks."""
@@ -80,6 +86,7 @@ class DeviceManager:
             self._running = False
             tasks = list(self._tasks.values())
             self._tasks.clear()
+            self._signatures.clear()
         for task in tasks:
             task.cancel()
         if tasks:
@@ -87,6 +94,49 @@ class DeviceManager:
         for device_id in self._states:
             self._states[device_id] = DeviceConnectionState.STOPPED
         logger.info("DeviceManager finalizado.")
+
+    async def _reconcile(self, restart: Collection[int] = ()) -> None:
+        """Make the running supervisors match the registered devices."""
+        devices = {
+            device.id: device
+            for device in self._repository.list_enabled()
+            if device.id is not None
+        }
+        for device_id in list(self._tasks):
+            device = devices.get(device_id)
+            unchanged = device is not None and self._signatures.get(device_id) == _signature(device)
+            if unchanged and device_id not in restart:
+                continue
+            await self._stop_supervisor(device_id)
+        for device_id, device in devices.items():
+            if device_id not in self._tasks:
+                self._start_supervisor(device)
+
+    def _start_supervisor(self, device: Device) -> None:
+        assert device.id is not None
+        try:
+            client = self._client_factory.create(device)
+        except Exception:
+            self._states[device.id] = DeviceConnectionState.ERROR
+            self._reconnect_attempts[device.id] = 0
+            logger.exception("Não foi possível preparar o dispositivo {}.", device.id)
+            return
+        self._states[device.id] = DeviceConnectionState.STOPPED
+        self._reconnect_attempts[device.id] = 0
+        self._signatures[device.id] = _signature(device)
+        self._tasks[device.id] = asyncio.create_task(
+            self._supervise(client), name=f"device-supervisor-{device.id}"
+        )
+
+    async def _stop_supervisor(self, device_id: int) -> None:
+        task = self._tasks.pop(device_id, None)
+        self._signatures.pop(device_id, None)
+        if task is None:
+            return
+        task.cancel()
+        with suppress(asyncio.CancelledError):
+            await task
+        self._states[device_id] = DeviceConnectionState.STOPPED
 
     def subscribe(self, *, max_queue_size: int = 100) -> asyncio.Queue[AccessEvent]:
         return self._broadcaster.subscribe(max_queue_size=max_queue_size)

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import type { ChangeEvent, FormEvent } from 'react'
+import type { ChangeEvent, FormEvent, MouseEvent } from 'react'
 import { Link } from 'react-router-dom'
-import { getJson, photoUrl, sendJson } from './api'
+import { getJson, photoUrl, remove, sendJson } from './api'
 import type { Device, Resident, SyncReport } from './types'
 import './AdminScreen.css'
 
@@ -11,18 +11,47 @@ function normalize(text: string): string {
   return text.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase()
 }
 
+const ZOOM_HEIGHT = 340
+const ZOOM_GAP = 12
+
 function ResidentPhoto({ resident }: { resident: Resident }) {
   const [failed, setFailed] = useState(false)
+  const [zoom, setZoom] = useState<{ top: number; left: number } | null>(null)
+
   if (!resident.has_photo || failed) {
     return <div className="thumb thumb--empty" aria-hidden="true" />
   }
+
+  // Fixed positioning, computed on hover: the table scrolls horizontally, and an
+  // absolutely positioned preview would be clipped by that scroll container.
+  const show = (event: MouseEvent<HTMLImageElement>) => {
+    const anchor = event.currentTarget.getBoundingClientRect()
+    setZoom({
+      top: Math.max(ZOOM_GAP, Math.min(anchor.top, window.innerHeight - ZOOM_HEIGHT - ZOOM_GAP)),
+      left: anchor.right + ZOOM_GAP,
+    })
+  }
+
   return (
-    <img
-      className="thumb"
-      src={photoUrl(resident.employee_no)}
-      alt={resident.name}
-      onError={() => setFailed(true)}
-    />
+    <>
+      <img
+        className="thumb"
+        src={photoUrl(resident.employee_no)}
+        alt={resident.name}
+        onError={() => setFailed(true)}
+        onMouseEnter={show}
+        onMouseLeave={() => setZoom(null)}
+      />
+      {zoom && (
+        <img
+          className="thumb-zoom"
+          style={{ top: zoom.top, left: zoom.left }}
+          src={photoUrl(resident.employee_no)}
+          alt=""
+          aria-hidden="true"
+        />
+      )}
+    </>
   )
 }
 
@@ -118,10 +147,31 @@ function ResidentRow({
 
 const EMPTY_DEVICE = { name: '', host: '', port: '80', username: '', password: '', model: '' }
 
-function DeviceForm({ onCreated }: { onCreated: (device: Device) => void }) {
-  const [form, setForm] = useState(EMPTY_DEVICE)
+function formOf(device: Device | null) {
+  if (device === null) return EMPTY_DEVICE
+  return {
+    name: device.name,
+    host: device.host,
+    port: String(device.port),
+    username: device.username,
+    password: '',
+    model: device.model ?? '',
+  }
+}
+
+function DeviceForm({
+  device,
+  onSaved,
+  onCancel,
+}: {
+  device: Device | null
+  onSaved: (device: Device) => void
+  onCancel: () => void
+}) {
+  const [form, setForm] = useState(() => formOf(device))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const editing = device !== null
 
   const update = (field: keyof typeof EMPTY_DEVICE) => (event: ChangeEvent<HTMLInputElement>) =>
     setForm((current) => ({ ...current, [field]: event.target.value }))
@@ -130,17 +180,20 @@ function DeviceForm({ onCreated }: { onCreated: (device: Device) => void }) {
     event.preventDefault()
     setSaving(true)
     setError(null)
+    const body = {
+      name: form.name.trim(),
+      host: form.host.trim(),
+      port: Number(form.port) || 80,
+      username: form.username.trim(),
+      password: form.password || null,
+      model: form.model.trim() || null,
+      ...(editing ? { enabled: device.enabled } : {}),
+    }
     try {
-      const device = await sendJson<Device>('/devices', 'POST', {
-        name: form.name.trim(),
-        host: form.host.trim(),
-        port: Number(form.port) || 80,
-        username: form.username.trim(),
-        password: form.password,
-        model: form.model.trim() || null,
-      })
-      onCreated(device)
-      setForm(EMPTY_DEVICE)
+      const saved = editing
+        ? await sendJson<Device>(`/devices/${device.id}`, 'PATCH', body)
+        : await sendJson<Device>('/devices', 'POST', { ...body, password: form.password })
+      onSaved(saved)
     } catch (failure) {
       setError((failure as Error).message)
     } finally {
@@ -172,7 +225,7 @@ function DeviceForm({ onCreated }: { onCreated: (device: Device) => void }) {
       <label className="device-form__field">
         Senha
         <input className="field" type="password" value={form.password} onChange={update('password')}
-          required />
+          required={!editing} placeholder={editing ? 'manter a atual' : undefined} />
       </label>
       <label className="device-form__field">
         Modelo
@@ -181,7 +234,10 @@ function DeviceForm({ onCreated }: { onCreated: (device: Device) => void }) {
       </label>
       <div className="device-form__actions">
         <button className="button button--primary" type="submit" disabled={saving}>
-          {saving ? 'Salvando…' : 'Adicionar equipamento'}
+          {saving ? 'Salvando…' : editing ? 'Salvar alterações' : 'Adicionar equipamento'}
+        </button>
+        <button className="button" type="button" onClick={onCancel} disabled={saving}>
+          Cancelar
         </button>
         {error && <span className="row__error">{error}</span>}
       </div>
@@ -194,13 +250,33 @@ function Devices({ onSynced }: { onSynced: () => void }) {
   const [syncing, setSyncing] = useState<number | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [adding, setAdding] = useState(false)
+  const [editing, setEditing] = useState<Device | null | undefined>(undefined)
 
   useEffect(() => {
     getJson<Device[]>('/devices')
       .then(setDevices)
       .catch((failure: Error) => setError(failure.message))
   }, [])
+
+  const saved = (device: Device) => {
+    setDevices((current) =>
+      current.some((item) => item.id === device.id)
+        ? current.map((item) => (item.id === device.id ? device : item))
+        : [...current, device],
+    )
+    setEditing(undefined)
+  }
+
+  const discard = async (device: Device) => {
+    if (!window.confirm(`Excluir "${device.name}"? O monitoramento dele para agora.`)) return
+    setError(null)
+    try {
+      await remove(`/devices/${device.id}`)
+      setDevices((current) => current.filter((item) => item.id !== device.id))
+    } catch (failure) {
+      setError((failure as Error).message)
+    }
+  }
 
   const sync = async (device: Device) => {
     setSyncing(device.id)
@@ -225,17 +301,15 @@ function Devices({ onSynced }: { onSynced: () => void }) {
     <section className="panel">
       <h2 className="panel__title">
         Equipamentos
-        <button className="button panel__action" onClick={() => setAdding((open) => !open)}>
-          {adding ? 'Fechar' : 'Adicionar facial'}
+        <button
+          className="button panel__action"
+          onClick={() => setEditing((current) => (current === null ? undefined : null))}
+        >
+          {editing === null ? 'Fechar' : 'Adicionar facial'}
         </button>
       </h2>
-      {adding && (
-        <DeviceForm
-          onCreated={(device) => {
-            setDevices((current) => [...current, device])
-            setAdding(false)
-          }}
-        />
+      {editing !== undefined && (
+        <DeviceForm device={editing} onSaved={saved} onCancel={() => setEditing(undefined)} />
       )}
       {devices.length === 0 && !error && <p className="panel__hint">Nenhum equipamento cadastrado.</p>}
       <ul className="devices">
@@ -248,13 +322,21 @@ function Devices({ onSynced }: { onSynced: () => void }) {
                 {device.model ? ` · ${device.model}` : ''}
               </span>
             </div>
-            <button
-              className="button button--primary"
-              onClick={() => sync(device)}
-              disabled={syncing !== null}
-            >
-              {syncing === device.id ? 'Sincronizando…' : 'Sincronizar cadastro'}
-            </button>
+            <div className="devices__actions">
+              <button
+                className="button button--primary"
+                onClick={() => sync(device)}
+                disabled={syncing !== null}
+              >
+                {syncing === device.id ? 'Sincronizando…' : 'Sincronizar cadastro'}
+              </button>
+              <button className="button" onClick={() => setEditing(device)}>
+                Editar
+              </button>
+              <button className="button button--danger" onClick={() => discard(device)}>
+                Excluir
+              </button>
+            </div>
           </li>
         ))}
       </ul>

@@ -2,9 +2,10 @@ import asyncio
 import unittest
 from datetime import UTC, datetime
 
+from app.application.ports.device_lookup import DeviceLookup
 from app.application.ports.resident_lookup import ResidentLookup
 from app.application.services.access_event_enricher import AccessEventEnricher
-from app.domain.entities.access_event import AccessEvent
+from app.domain.entities.access_event import AccessEvent, DeviceSummary
 from app.domain.entities.resident import ResidentSummary
 
 
@@ -37,13 +38,25 @@ class FakeDeviceManager:
         self.unsubscribed = True
 
 
+class FakeDeviceLookup(DeviceLookup):
+    def __init__(self, devices: dict[int, str], *, broken: bool = False) -> None:
+        self.devices = devices
+        self.broken = broken
+
+    def find(self, device_id: int) -> DeviceSummary | None:
+        if self.broken:
+            raise RuntimeError("banco indisponível")
+        name = self.devices.get(device_id)
+        return DeviceSummary(device_id, name) if name else None
+
+
 RESIDENT = ResidentSummary(52, "2", "nk", "301", "A", True)
 
 
 class AccessEventEnricherTests(unittest.IsolatedAsyncioTestCase):
-    async def enrich(self, event: AccessEvent, lookup: FakeLookup):
+    async def enrich(self, event: AccessEvent, lookup: FakeLookup, devices: FakeDeviceLookup | None = None):
         manager = FakeDeviceManager()
-        enricher = AccessEventEnricher(manager, lookup)
+        enricher = AccessEventEnricher(manager, lookup, devices)
         await enricher.start()
         subscription = enricher.subscribe()
         try:
@@ -98,6 +111,22 @@ class AccessEventEnricherTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(enriched.resident.name, "nk")
         finally:
             await enricher.stop()
+
+    async def test_names_the_device_the_event_came_from(self) -> None:
+        enriched = await self.enrich(
+            access_event(), FakeLookup({"2": RESIDENT}), FakeDeviceLookup({1: "Portaria social"})
+        )
+
+        assert enriched.device is not None
+        self.assertEqual(enriched.device.name, "Portaria social")
+
+    async def test_publishes_the_event_when_the_device_lookup_fails(self) -> None:
+        enriched = await self.enrich(
+            access_event(), FakeLookup({"2": RESIDENT}), FakeDeviceLookup({}, broken=True)
+        )
+
+        self.assertIsNone(enriched.device)
+        assert enriched.resident is not None
 
     async def test_stop_releases_the_device_subscription(self) -> None:
         manager = FakeDeviceManager()

@@ -18,8 +18,17 @@ class AccessEvent:
 
 
 @dataclass(frozen=True, slots=True)
+class DeviceSummary:
+    """Device identification the porter reads, not an integration input."""
+
+    id: int
+    name: str
+
+
+@dataclass(frozen=True, slots=True)
 class EnrichedAccessEvent:
     """Presentation-ready event, never used as a device integration input."""
 
     event: AccessEvent
     resident: ResidentSummary | None
+    device: DeviceSummary | None = None
