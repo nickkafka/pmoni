@@ -47,9 +47,52 @@
   color: var(--ink-soft);
 }
 
+.panel__action {
+  margin-inline-start: auto;
+}
+
 .panel__hint {
   margin: 12px 0 0;
   color: var(--ink-soft);
+}
+
+/* Device form ----------------------------------------------------------- */
+
+.device-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: end;
+  padding: 16px;
+  margin-bottom: 16px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.device-form__field {
+  display: grid;
+  gap: 5px;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.device-form__field .field {
+  width: 160px;
+}
+
+.device-form__field--wide .field {
+  width: 230px;
+}
+
+.device-form__field--narrow .field {
+  width: 80px;
+}
+
+.device-form__actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .panel__ok {

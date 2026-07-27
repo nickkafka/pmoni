@@ -15,6 +15,11 @@ class Settings(BaseSettings):
     DATABASE_URL: str = DEFAULT_DATABASE_URL
     DEVICE_CREDENTIALS_KEY: str | None = None
 
+    # Pause between journal queries. The device answers a query in about a second on
+    # the local network and more over the internet, so lowering this only helps up to
+    # the point where the queries themselves become the limit.
+    DEVICE_POLL_INTERVAL_SECONDS: float = 1.0
+
     LOG_LEVEL: str = "INFO"
 
     @field_validator("DATABASE_URL")

@@ -27,9 +27,20 @@ class HikvisionClient(DeviceClient):
     MAX_PAGE_SIZE = 30
     MAX_SERIAL_NO = 3_000_000_000
 
+    # The firmware scans the journal by time, so the search cost grows with the
+    # window: one day measured around 4s against a DS-K1T342 while ten minutes
+    # measured around 1.4s. Polling therefore asks only for the span since the last
+    # entry seen, widened by a margin that absorbs clock differences.
+    WINDOW_MARGIN = timedelta(minutes=2)
+    # Widening only while the journal looks empty keeps startup cheap on a busy
+    # device and still finds the last entry on one that has been idle for months.
+    BASELINE_LOOKBACKS = (
+        timedelta(hours=1), timedelta(days=1), timedelta(days=30), timedelta(days=365),
+    )
+
     def __init__(
         self, *, device_id: int, host: str, port: int, username: str, password: str,
-        scheme: str = "http", timeout_seconds: float = 30.0, poll_interval_seconds: float = 3.0,
+        scheme: str = "http", timeout_seconds: float = 30.0, poll_interval_seconds: float = 1.0,
         parser: AcsEventParser | None = None, session: IsapiSession | None = None,
     ) -> None:
         if poll_interval_seconds <= 0:
@@ -43,6 +54,7 @@ class HikvisionClient(DeviceClient):
         )
         self._cursor = 0
         self._timezone: tzinfo | None = None
+        self._window_start: datetime | None = None
 
     @property
     def device_id(self) -> int:
@@ -58,9 +70,11 @@ class HikvisionClient(DeviceClient):
             self._timezone = await self._read_device_timezone()
             if self._cursor == 0:
                 # Only the very first connection skips the journal history. A
-                # reconnection keeps the cursor, so whoever passed while the device
-                # was unreachable is still delivered instead of silently dropped.
+                # reconnection keeps the cursor and the window, so whoever passed
+                # while the device was unreachable is still delivered.
                 self._cursor = await self._read_latest_serial_no()
+            if self._window_start is None:
+                self._window_start = self._device_now()
         except Exception:
             await self.disconnect()
             raise
@@ -83,20 +97,28 @@ class HikvisionClient(DeviceClient):
     async def _collect_new_events(self) -> list[AccessEvent]:
         """Page through every journal entry recorded after the cursor."""
         events: list[AccessEvent] = []
-        position, previous_cursor = 0, self._cursor
+        polled_at = self._device_now()
+        since = self._window_start or polled_at
+        position, previous_cursor, newest_seen = 0, self._cursor, None
         while True:
-            page = await self._search(position=position, begin_serial_no=previous_cursor + 1)
+            page = await self._search(
+                since=since, position=position, begin_serial_no=previous_cursor + 1
+            )
             entries = page.get("InfoList") or []
             if not entries:
                 break
             for entry in entries:
                 self._cursor = max(self._cursor, self._serial_no_of(entry))
+                newest_seen = self._entry_time(entry) or newest_seen
                 event = self._parse(entry)
                 if event is not None:
                     events.append(event)
             position += len(entries)
             if page.get("responseStatusStrg") != "MORE":
                 break
+        # Nothing before this poll can still be pending: the search just covered that
+        # span and returned everything in it, so the window may close behind us.
+        self._window_start = newest_seen or polled_at
         return events
 
     def _parse(self, entry: dict[str, Any]) -> AccessEvent | None:
@@ -110,17 +132,27 @@ class HikvisionClient(DeviceClient):
             return None
 
     async def _read_latest_serial_no(self) -> int:
-        """Baseline the cursor on the newest entry without paging the whole journal."""
-        total = int((await self._search(position=0, page_size=1)).get("totalMatches") or 0)
-        if total <= 0:
-            return 0
-        page = await self._search(position=total - 1, page_size=1)
-        return max((self._serial_no_of(entry) for entry in page.get("InfoList") or []), default=0)
+        """Baseline the cursor on the newest entry without paging the whole journal.
+
+        Any window ending now that contains an entry also contains the newest one, so
+        the search starts narrow and only widens while it comes back empty.
+        """
+        for lookback in self.BASELINE_LOOKBACKS:
+            since = self._device_now() - lookback
+            total = int((await self._search(since=since, position=0, page_size=1)).get("totalMatches") or 0)
+            if total <= 0:
+                continue
+            page = await self._search(since=since, position=total - 1, page_size=1)
+            serial = max((self._serial_no_of(entry) for entry in page.get("InfoList") or []), default=0)
+            if serial:
+                return serial
+        return 0
 
     async def _search(
-        self, *, position: int, page_size: int | None = None, begin_serial_no: int | None = None
+        self, *, since: datetime, position: int, page_size: int | None = None,
+        begin_serial_no: int | None = None,
     ) -> dict[str, Any]:
-        start_time, end_time = self._search_window()
+        start_time, end_time = self._search_window(since)
         condition: dict[str, Any] = {
             "searchID": f"monikraft-{self._device_id}",
             "searchResultPosition": position,
@@ -140,13 +172,17 @@ class HikvisionClient(DeviceClient):
             raise HikvisionProtocolError("Resposta do journal ISAPI sem AcsEvent.")
         return result
 
-    def _search_window(self) -> tuple[str, str]:
-        """Bound the query widely; the serial cursor is what actually selects new entries.
+    def _search_window(self, since: datetime) -> tuple[str, str]:
+        """Bound the query; the serial cursor is what actually selects new entries.
 
         The firmware rejects timestamps carrying microseconds, so they are dropped.
         """
-        now = datetime.now(self._timezone).replace(microsecond=0)
-        return (now - timedelta(days=1)).isoformat(), (now + timedelta(days=1)).isoformat()
+        start = since - self.WINDOW_MARGIN
+        end = self._device_now() + self.WINDOW_MARGIN
+        return start.isoformat(), end.isoformat()
+
+    def _device_now(self) -> datetime:
+        return datetime.now(self._timezone).replace(microsecond=0)
 
     async def _read_device_timezone(self) -> tzinfo | None:
         """Anchor queries on the device clock so its offset drives the search window."""
@@ -157,6 +193,13 @@ class HikvisionClient(DeviceClient):
             return datetime.fromisoformat(match.group(1).strip()).tzinfo
         except ValueError as exc:
             raise HikvisionProtocolError("Horário local do dispositivo inválido.") from exc
+
+    @staticmethod
+    def _entry_time(entry: dict[str, Any]) -> datetime | None:
+        try:
+            return datetime.fromisoformat(str(entry.get("time")).replace("Z", "+00:00"))
+        except ValueError:
+            return None
 
     @staticmethod
     def _serial_no_of(entry: dict[str, Any]) -> int:

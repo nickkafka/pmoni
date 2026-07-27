@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import type { ChangeEvent, FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { getJson, photoUrl, sendJson } from './api'
 import type { Device, Resident, SyncReport } from './types'
@@ -115,11 +116,85 @@ function ResidentRow({
   )
 }
 
+const EMPTY_DEVICE = { name: '', host: '', port: '80', username: '', password: '', model: '' }
+
+function DeviceForm({ onCreated }: { onCreated: (device: Device) => void }) {
+  const [form, setForm] = useState(EMPTY_DEVICE)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const update = (field: keyof typeof EMPTY_DEVICE) => (event: ChangeEvent<HTMLInputElement>) =>
+    setForm((current) => ({ ...current, [field]: event.target.value }))
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault()
+    setSaving(true)
+    setError(null)
+    try {
+      const device = await sendJson<Device>('/devices', 'POST', {
+        name: form.name.trim(),
+        host: form.host.trim(),
+        port: Number(form.port) || 80,
+        username: form.username.trim(),
+        password: form.password,
+        model: form.model.trim() || null,
+      })
+      onCreated(device)
+      setForm(EMPTY_DEVICE)
+    } catch (failure) {
+      setError((failure as Error).message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <form className="device-form" onSubmit={submit}>
+      <label className="device-form__field device-form__field--wide">
+        Nome
+        <input className="field" value={form.name} onChange={update('name')} required
+          placeholder="Portaria social" />
+      </label>
+      <label className="device-form__field device-form__field--wide">
+        Endereço
+        <input className="field" value={form.host} onChange={update('host')} required
+          placeholder="192.168.1.10 ou nome.ddns.net" />
+      </label>
+      <label className="device-form__field device-form__field--narrow">
+        Porta
+        <input className="field" value={form.port} onChange={update('port')} inputMode="numeric" />
+      </label>
+      <label className="device-form__field">
+        Usuário
+        <input className="field" value={form.username} onChange={update('username')} required
+          placeholder="admin" />
+      </label>
+      <label className="device-form__field">
+        Senha
+        <input className="field" type="password" value={form.password} onChange={update('password')}
+          required />
+      </label>
+      <label className="device-form__field">
+        Modelo
+        <input className="field" value={form.model} onChange={update('model')}
+          placeholder="opcional" />
+      </label>
+      <div className="device-form__actions">
+        <button className="button button--primary" type="submit" disabled={saving}>
+          {saving ? 'Salvando…' : 'Adicionar equipamento'}
+        </button>
+        {error && <span className="row__error">{error}</span>}
+      </div>
+    </form>
+  )
+}
+
 function Devices({ onSynced }: { onSynced: () => void }) {
   const [devices, setDevices] = useState<Device[]>([])
   const [syncing, setSyncing] = useState<number | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [adding, setAdding] = useState(false)
 
   useEffect(() => {
     getJson<Device[]>('/devices')
@@ -148,7 +223,20 @@ function Devices({ onSynced }: { onSynced: () => void }) {
 
   return (
     <section className="panel">
-      <h2 className="panel__title">Equipamentos</h2>
+      <h2 className="panel__title">
+        Equipamentos
+        <button className="button panel__action" onClick={() => setAdding((open) => !open)}>
+          {adding ? 'Fechar' : 'Adicionar facial'}
+        </button>
+      </h2>
+      {adding && (
+        <DeviceForm
+          onCreated={(device) => {
+            setDevices((current) => [...current, device])
+            setAdding(false)
+          }}
+        />
+      )}
       {devices.length === 0 && !error && <p className="panel__hint">Nenhum equipamento cadastrado.</p>}
       <ul className="devices">
         {devices.map((device) => (

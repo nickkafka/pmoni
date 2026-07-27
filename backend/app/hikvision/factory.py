@@ -3,6 +3,7 @@ from app.application.ports.device_client_factory import DeviceClientFactory
 from app.application.ports.device_credentials_store import DeviceCredentialsStore
 from app.application.ports.person_directory import PersonDirectory
 from app.application.ports.person_directory_factory import PersonDirectoryFactory
+from app.core.config import settings
 from app.domain.entities.device import Device
 from app.hikvision.client import HikvisionClient
 from app.hikvision.directory import HikvisionPersonDirectory
@@ -36,6 +37,7 @@ class HikvisionClientFactory(DeviceClientFactory):
         return HikvisionClient(
             device_id=device_id, host=device.host, port=device.port,
             username=device.username, password=password,
+            poll_interval_seconds=settings.DEVICE_POLL_INTERVAL_SECONDS,
         )
 
 
