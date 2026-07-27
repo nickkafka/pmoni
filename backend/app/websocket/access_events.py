@@ -3,8 +3,9 @@ from contextlib import suppress
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-from app.application.services.device_manager import DeviceManager
-from app.domain.entities.access_event import AccessEvent
+from app.application.services.access_event_enricher import AccessEventEnricher
+from app.domain.entities.access_event import EnrichedAccessEvent
+from app.domain.entities.resident import ResidentSummary
 
 router = APIRouter()
 
@@ -12,13 +13,13 @@ router = APIRouter()
 @router.websocket("/ws/access-events")
 async def access_events(websocket: WebSocket) -> None:
     await websocket.accept()
-    manager: DeviceManager | None = getattr(websocket.app.state, "device_manager", None)
-    if manager is None:
+    enricher: AccessEventEnricher | None = getattr(websocket.app.state, "access_events", None)
+    if enricher is None:
         await websocket.send_json({"type": "system_status", "status": "monitoring_unavailable"})
         await websocket.close(code=1013, reason="Monitoramento não configurado")
         return
 
-    subscription = manager.subscribe()
+    subscription = enricher.subscribe()
     try:
         while True:
             event_task = asyncio.create_task(subscription.get())
@@ -40,10 +41,11 @@ async def access_events(websocket: WebSocket) -> None:
     except WebSocketDisconnect:
         return
     finally:
-        manager.unsubscribe(subscription)
+        enricher.unsubscribe(subscription)
 
 
-def _event_message(event: AccessEvent) -> dict:
+def _event_message(enriched: EnrichedAccessEvent) -> dict:
+    event = enriched.event
     return {
         "type": "access_event",
         "data": {
@@ -54,5 +56,19 @@ def _event_message(event: AccessEvent) -> dict:
             "success": event.success,
             "event_time": event.event_time.isoformat(),
             "snapshot": event.snapshot,
+            "resident": _resident_message(enriched.resident),
         },
+    }
+
+
+def _resident_message(resident: ResidentSummary | None) -> dict | None:
+    if resident is None:
+        return None
+    return {
+        "id": resident.id,
+        "employee_no": resident.employee_no,
+        "name": resident.name,
+        "apartment": resident.apartment,
+        "block": resident.block,
+        "photo_url": f"/residents/{resident.employee_no}/photo" if resident.has_photo else None,
     }

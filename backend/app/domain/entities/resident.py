@@ -11,6 +11,7 @@ class ResidentSummary:
     name: str
     apartment: str | None
     block: str | None
+    has_photo: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -39,4 +40,6 @@ class Resident:
     synced_at: datetime | None
 
     def to_summary(self) -> ResidentSummary:
-        return ResidentSummary(self.id, self.employee_no, self.name, self.apartment, self.block)
+        return ResidentSummary(
+            self.id, self.employee_no, self.name, self.apartment, self.block, self.has_photo
+        )

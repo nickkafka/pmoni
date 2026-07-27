@@ -1,6 +1,6 @@
 # ADR 0005 — Distribuição de eventos de acesso por WebSocket
 
-**Status:** Aceito  
+**Status:** Aceito, estendido pelo [ADR 0008](0008-access-event-enrichment.md)  
 **Data:** 2026-07-24
 
 ## Decisão

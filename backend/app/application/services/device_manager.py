@@ -6,6 +6,7 @@ from enum import StrEnum
 from app.application.ports.device_client import DeviceClient
 from app.application.ports.device_client_factory import DeviceClientFactory
 from app.application.ports.device_repository import DeviceRepository
+from app.application.services.event_broadcaster import EventBroadcaster
 from app.core.logger import logger
 from app.domain.entities.access_event import AccessEvent
 
@@ -43,7 +44,7 @@ class DeviceManager:
         self._tasks: dict[int, asyncio.Task[None]] = {}
         self._states: dict[int, DeviceConnectionState] = {}
         self._reconnect_attempts: dict[int, int] = {}
-        self._subscribers: set[asyncio.Queue[AccessEvent]] = set()
+        self._broadcaster: EventBroadcaster[AccessEvent] = EventBroadcaster()
         self._running = False
         self._lifecycle_lock = asyncio.Lock()
 
@@ -88,14 +89,10 @@ class DeviceManager:
         logger.info("DeviceManager finalizado.")
 
     def subscribe(self, *, max_queue_size: int = 100) -> asyncio.Queue[AccessEvent]:
-        if max_queue_size <= 0:
-            raise ValueError("O tamanho da fila deve ser maior que zero.")
-        queue: asyncio.Queue[AccessEvent] = asyncio.Queue(maxsize=max_queue_size)
-        self._subscribers.add(queue)
-        return queue
+        return self._broadcaster.subscribe(max_queue_size=max_queue_size)
 
     def unsubscribe(self, queue: asyncio.Queue[AccessEvent]) -> None:
-        self._subscribers.discard(queue)
+        self._broadcaster.unsubscribe(queue)
 
     def statuses(self) -> Mapping[int, ManagedDeviceStatus]:
         return {
@@ -123,7 +120,7 @@ class DeviceManager:
                 async for event in client.events():
                     if not self._running:
                         break
-                    self._publish(event)
+                    self._broadcaster.publish(event)
                 if self._running:
                     raise ConnectionError("O fluxo de eventos foi encerrado.")
             except asyncio.CancelledError:
@@ -135,16 +132,6 @@ class DeviceManager:
                 await asyncio.sleep(self._reconnect_delay_seconds)
             finally:
                 await self._disconnect_safely(client)
-
-    def _publish(self, event: AccessEvent) -> None:
-        for queue in tuple(self._subscribers):
-            if queue.full():
-                try:
-                    queue.get_nowait()
-                except asyncio.QueueEmpty:
-                    continue
-                logger.warning("Fila de eventos cheia; evento antigo descartado.")
-            queue.put_nowait(event)
 
     @staticmethod
     async def _disconnect_safely(client: DeviceClient) -> None:
