@@ -61,6 +61,21 @@
   color: var(--ink-strong);
 }
 
+/* Discreet on purpose: the booth screen is for watching, not for navigating. */
+.header__admin {
+  font-size: clamp(12px, 1vw, 15px);
+  color: var(--ink-soft);
+  text-decoration: none;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 5px 12px;
+}
+
+.header__admin:hover {
+  color: var(--ink-strong);
+  border-color: var(--accent);
+}
+
 /* Current passage ------------------------------------------------------- */
 
 .current {

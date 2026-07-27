@@ -20,3 +20,30 @@ export type AccessEventMessage = {
 
 /** `unavailable` means the backend is up but has no monitoring configured. */
 export type ConnectionStatus = 'connecting' | 'connected' | 'offline' | 'unavailable'
+
+export type Resident = {
+  id: number
+  employee_no: string
+  name: string
+  apartment: string | null
+  block: string | null
+  has_photo: boolean
+  synced_at: string | null
+}
+
+export type Device = {
+  id: number
+  name: string
+  host: string
+  port: number
+  username: string
+  model: string | null
+  enabled: boolean
+}
+
+export type SyncReport = {
+  created: number
+  updated: number
+  photos_downloaded: number
+  failures: number
+}

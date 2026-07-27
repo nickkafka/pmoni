@@ -56,7 +56,11 @@ class HikvisionClient(DeviceClient):
         await self._session.open()
         try:
             self._timezone = await self._read_device_timezone()
-            self._cursor = await self._read_latest_serial_no()
+            if self._cursor == 0:
+                # Only the very first connection skips the journal history. A
+                # reconnection keeps the cursor, so whoever passed while the device
+                # was unreachable is still delivered instead of silently dropped.
+                self._cursor = await self._read_latest_serial_no()
         except Exception:
             await self.disconnect()
             raise

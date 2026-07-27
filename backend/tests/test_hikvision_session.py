@@ -14,9 +14,13 @@ class ExpiringNonceDevice:
     client performs a new Digest handshake.
     """
 
-    def __init__(self, requests_per_handshake: int = 2, *, always_unauthorized: bool = False) -> None:
+    def __init__(
+        self, requests_per_handshake: int = 2, *, always_unauthorized: bool = False,
+        drops_connection: bool = False,
+    ) -> None:
         self.requests_per_handshake = requests_per_handshake
         self.always_unauthorized = always_unauthorized
+        self.drops_connection = drops_connection
         self.handshakes = 0
         self.requests_since_handshake = 0
         self.served = 0
@@ -27,7 +31,10 @@ class ExpiringNonceDevice:
 
     def handle(self, request: httpx.Request) -> httpx.Response:
         self.requests_since_handshake += 1
-        if self.always_unauthorized or self.requests_since_handshake > self.requests_per_handshake:
+        expired = self.requests_since_handshake > self.requests_per_handshake
+        if expired and self.drops_connection:
+            raise httpx.RemoteProtocolError("Server disconnected without sending a response.")
+        if self.always_unauthorized or expired:
             return httpx.Response(401, text="<userCheck><statusValue>401</statusValue></userCheck>")
         self.served += 1
         return httpx.Response(200, json={"AcsEvent": {"totalMatches": 0}})
@@ -54,6 +61,17 @@ class IsapiSessionTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(device.served, 6)
         self.assertGreater(device.handshakes, 1)
+        await session.close()
+
+    async def test_retries_when_the_device_dropped_the_pooled_connection(self) -> None:
+        device = ExpiringNonceDevice(requests_per_handshake=2, drops_connection=True)
+        session = SessionAgainstDevice(device)
+        await session.open()
+
+        for _ in range(6):
+            self.assertEqual(await session.post_json("/journal", {}), {"AcsEvent": {"totalMatches": 0}})
+
+        self.assertEqual(device.served, 6)
         await session.close()
 
     async def test_reports_refused_credentials_after_renewing(self) -> None:

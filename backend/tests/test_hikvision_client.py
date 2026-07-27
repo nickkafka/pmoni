@@ -150,6 +150,29 @@ class HikvisionClientTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertTrue(session.conditions[0]["startTime"].endswith("-03:00"))
 
+    async def test_reconnection_delivers_what_happened_during_the_outage(self) -> None:
+        session = FakeIsapiSession([journal_entry(10)])
+        client = self.build(session)
+        await client.connect()
+        await client.disconnect()
+
+        session.entries.append(journal_entry(11, employee_no="99"))
+        await client.connect()
+        events = await collect(client, 1)
+
+        self.assertEqual([event.external_id for event in events], ["11"])
+
+    async def test_reconnection_does_not_replay_the_whole_journal(self) -> None:
+        session = FakeIsapiSession([journal_entry(serial) for serial in (10, 11, 12)])
+        client = self.build(session)
+        await client.connect()
+        await client.disconnect()
+
+        await client.connect()
+
+        with self.assertRaises(asyncio.TimeoutError):
+            await collect(client, 1, timeout=0.2)
+
     async def test_disconnect_closes_the_session(self) -> None:
         session = FakeIsapiSession([journal_entry(1)])
         client = self.build(session)

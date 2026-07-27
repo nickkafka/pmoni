@@ -1,0 +1,235 @@
+.admin {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 28px 24px 64px;
+  color: var(--ink);
+  font-size: 15px;
+}
+
+.admin__header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.admin__title {
+  margin: 0;
+  font-size: 30px;
+  font-weight: 700;
+  color: var(--ink-strong);
+  margin-inline-end: auto;
+}
+
+/* Panels ---------------------------------------------------------------- */
+
+.panel {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 20px;
+  margin-bottom: 22px;
+}
+
+.panel__title {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  margin: 0 0 14px;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--ink-strong);
+}
+
+.panel__count {
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--ink-soft);
+}
+
+.panel__hint {
+  margin: 12px 0 0;
+  color: var(--ink-soft);
+}
+
+.panel__ok {
+  margin: 12px 0 0;
+  color: var(--granted);
+}
+
+.panel__error {
+  margin: 12px 0 0;
+  color: var(--denied);
+}
+
+/* Devices --------------------------------------------------------------- */
+
+.devices {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.devices__item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.devices__address {
+  display: block;
+  color: var(--ink-soft);
+  font-size: 13px;
+  margin-top: 2px;
+}
+
+/* Filters --------------------------------------------------------------- */
+
+.filters {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.filters__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+/* Table ----------------------------------------------------------------- */
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th {
+  text-align: left;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-soft);
+  font-weight: 600;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+
+.row--pending {
+  background: var(--pending-bg);
+}
+
+.cell--name {
+  font-weight: 600;
+  color: var(--ink-strong);
+}
+
+.cell--id {
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-soft);
+}
+
+.cell--missing {
+  color: var(--ink-soft);
+  font-style: italic;
+}
+
+/* Never `display: flex` here: it drops the cell out of the table layout and
+   misaligns the row borders. */
+.cell--actions {
+  white-space: nowrap;
+  text-align: right;
+}
+
+.cell--actions > * + * {
+  margin-inline-start: 8px;
+}
+
+.row__error {
+  color: var(--denied);
+  font-size: 13px;
+}
+
+.thumb {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: var(--placeholder);
+  display: block;
+}
+
+.thumb--empty {
+  background: var(--placeholder);
+}
+
+/* Controls -------------------------------------------------------------- */
+
+.field {
+  font: inherit;
+  color: var(--ink-strong);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 7px 10px;
+  width: 110px;
+  box-sizing: border-box;
+}
+
+.field--search {
+  width: min(340px, 100%);
+}
+
+.field:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.button {
+  font: inherit;
+  font-weight: 600;
+  color: var(--ink-strong);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 7px 14px;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.button:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.button--primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}

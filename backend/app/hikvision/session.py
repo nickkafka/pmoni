@@ -49,9 +49,16 @@ class IsapiSession:
         return self._decode_json(path, response)
 
     async def _request(self, method: str, path: str, **kwargs: Any) -> httpx.Response:
-        response = await self._send(method, path, **kwargs)
+        try:
+            response = await self._send(method, path, **kwargs)
+        except httpx.TransportError:
+            # The terminal closes pooled connections on its own. Reusing a dead one
+            # must not be reported as a device failure, which would drop the
+            # supervisor into a reconnect cycle every few polls.
+            await self._renew_session()
+            response = await self._send(method, path, **kwargs)
         if response.status_code == httpx.codes.UNAUTHORIZED:
-            await self._renew_authentication()
+            await self._renew_session()
             response = await self._send(method, path, **kwargs)
         if response.status_code == httpx.codes.UNAUTHORIZED:
             raise HikvisionAuthenticationError("Credenciais recusadas pelo dispositivo.")
@@ -64,8 +71,8 @@ class IsapiSession:
             raise HikvisionProtocolError("A sessão ISAPI não foi aberta.")
         return await self._client.request(method, f"{self._base_url}{path}", **kwargs)
 
-    async def _renew_authentication(self) -> None:
-        """Force a new Digest challenge by replacing the client holding the stale nonce."""
+    async def _renew_session(self) -> None:
+        """Replace the client, forcing a fresh connection and a new Digest challenge."""
         await self.close()
         self._client = self._build_client()
 

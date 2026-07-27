@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useAccessEvents } from './useAccessEvents'
 import type { AccessEventMessage, ConnectionStatus } from './types'
 import './PorterScreen.css'
@@ -115,6 +116,9 @@ export default function PorterScreen() {
           {STATUS_LABEL[status]}
         </span>
         <Clock />
+        <Link className="header__admin" to="/admin">
+          Administração
+        </Link>
       </header>
 
       {current ? (
