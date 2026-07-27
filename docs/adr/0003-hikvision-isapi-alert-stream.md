@@ -1,7 +1,11 @@
 # ADR 0003 — Adaptador Hikvision por ISAPI Alert Stream
 
-**Status:** Aceito  
+**Status:** Substituído pelo [ADR 0006](0006-hikvision-acs-event-polling.md) em 2026-07-27  
 **Data:** 2026-07-24
+
+> O Alert Stream não existe nos terminais de controle de acesso: o DS-K1T342MFWX
+> responde HTTP 404 em `/ISAPI/Event/notification/alertStream`. A decisão abaixo
+> ficou restrita a câmeras e NVRs, que o Monikraft não integra.
 
 ## Decisão
 
