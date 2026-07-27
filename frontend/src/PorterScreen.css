@@ -1,0 +1,244 @@
+/* Guard booth display: read at a distance, in a room that is often bright. */
+
+.porter {
+  min-height: 100svh;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: clamp(12px, 2vh, 28px);
+  padding: clamp(12px, 2vh, 24px) clamp(16px, 3vw, 40px);
+  box-sizing: border-box;
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: clamp(8px, 1.5vh, 16px);
+}
+
+.header__brand {
+  font-size: clamp(18px, 1.8vw, 26px);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-strong);
+}
+
+.header__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-inline-start: auto;
+  font-size: clamp(14px, 1.2vw, 19px);
+  color: var(--ink-soft);
+}
+
+.header__dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.header__status--connected {
+  color: var(--granted);
+}
+.header__status--connecting {
+  color: var(--warning);
+}
+.header__status--offline,
+.header__status--unavailable {
+  color: var(--denied);
+}
+
+.header__clock {
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(18px, 1.8vw, 28px);
+  font-weight: 600;
+  color: var(--ink-strong);
+}
+
+/* Current passage ------------------------------------------------------- */
+
+.current {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: clamp(20px, 3vw, 56px);
+  padding: clamp(16px, 3vh, 40px);
+  border-radius: 20px;
+  border: 3px solid var(--line);
+  background: var(--card);
+  animation: reveal 260ms ease-out;
+  min-height: 0;
+}
+
+.current--granted {
+  border-color: var(--granted);
+}
+.current--denied {
+  border-color: var(--denied);
+}
+
+@keyframes reveal {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .current {
+    animation: none;
+  }
+}
+
+.photo {
+  object-fit: cover;
+  border-radius: 16px;
+  background: var(--placeholder);
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  color: var(--ink-soft);
+  flex-shrink: 0;
+}
+
+.photo--large {
+  width: clamp(180px, 26vw, 360px);
+  aspect-ratio: 3 / 4;
+  font-size: clamp(48px, 7vw, 96px);
+}
+
+.photo--small {
+  width: clamp(52px, 5vw, 76px);
+  aspect-ratio: 1;
+  border-radius: 12px;
+  font-size: clamp(16px, 1.6vw, 22px);
+}
+
+.current__details {
+  min-width: 0;
+}
+
+.current__name {
+  margin: 0;
+  font-size: clamp(32px, 5vw, 76px);
+  line-height: 1.05;
+  font-weight: 700;
+  color: var(--ink-strong);
+  overflow-wrap: break-word;
+}
+
+.current__location {
+  margin: clamp(8px, 1.5vh, 20px) 0 0;
+  font-size: clamp(26px, 4vw, 60px);
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.current__location--missing {
+  font-size: clamp(18px, 2vw, 30px);
+  font-weight: 500;
+  color: var(--ink-soft);
+}
+
+.current__verdict {
+  margin: clamp(10px, 2vh, 24px) 0 0;
+  display: inline-block;
+  padding: 6px 18px;
+  border-radius: 999px;
+  font-size: clamp(15px, 1.4vw, 22px);
+  font-weight: 600;
+}
+
+.current__verdict--granted {
+  background: var(--granted-bg);
+  color: var(--granted);
+}
+.current__verdict--denied {
+  background: var(--denied-bg);
+  color: var(--denied);
+}
+
+.current__meta {
+  margin: 10px 0 0;
+  font-size: clamp(14px, 1.2vw, 20px);
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Waiting --------------------------------------------------------------- */
+
+.waiting {
+  display: grid;
+  place-content: center;
+  text-align: center;
+  gap: 12px;
+  border: 2px dashed var(--line);
+  border-radius: 20px;
+}
+
+.waiting__title {
+  margin: 0;
+  font-size: clamp(24px, 3vw, 44px);
+  font-weight: 600;
+  color: var(--ink-strong);
+}
+
+.waiting__hint {
+  margin: 0;
+  font-size: clamp(15px, 1.3vw, 20px);
+  color: var(--ink-soft);
+}
+
+/* History --------------------------------------------------------------- */
+
+.history {
+  border-top: 1px solid var(--line);
+  padding-top: clamp(8px, 1.5vh, 16px);
+}
+
+.history__label {
+  font-size: clamp(12px, 1vw, 15px);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--ink-soft);
+}
+
+.history__list {
+  display: flex;
+  gap: clamp(10px, 1.4vw, 20px);
+  margin: 10px 0 0;
+  padding: 0 0 4px;
+  list-style: none;
+  overflow-x: auto;
+}
+
+.history__item {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  width: clamp(78px, 8vw, 116px);
+  text-align: center;
+}
+
+.history__name {
+  font-size: clamp(11px, 0.9vw, 14px);
+  color: var(--ink);
+  line-height: 1.2;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.history__time {
+  font-size: clamp(10px, 0.85vw, 13px);
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
