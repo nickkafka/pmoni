@@ -1,30 +1,30 @@
-/* Guard booth display: read at a distance, in a room that is often bright. */
+/* Guard booth display: read at a distance, styled on Prever — Dark Gold. */
 
 .porter {
   min-height: 100svh;
   display: grid;
   grid-template-rows: auto 1fr auto;
-  gap: clamp(12px, 2vh, 28px);
-  padding: clamp(12px, 2vh, 24px) clamp(16px, 3vw, 40px);
+  gap: clamp(12px, 2vh, 26px);
+  padding: clamp(12px, 2vh, 22px) clamp(16px, 3vw, 36px);
   box-sizing: border-box;
-  background: var(--surface);
-  color: var(--ink);
 }
+
+/* Header ----------------------------------------------------------------- */
 
 .header {
   display: flex;
   align-items: center;
-  gap: 20px;
-  border-bottom: 1px solid var(--line);
-  padding-bottom: clamp(8px, 1.5vh, 16px);
+  gap: 16px;
+  border-bottom: 1px solid var(--divider);
+  padding-bottom: clamp(8px, 1.5vh, 14px);
 }
 
 .header__brand {
   font-size: clamp(18px, 1.8vw, 26px);
   font-weight: 700;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--ink-strong);
+  color: var(--gold-primary);
 }
 
 .header__status {
@@ -32,70 +32,102 @@
   align-items: center;
   gap: 10px;
   margin-inline-start: auto;
-  font-size: clamp(14px, 1.2vw, 19px);
-  color: var(--ink-soft);
+  font-size: clamp(11px, 1vw, 14px);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
 }
 
 .header__dot {
-  width: 12px;
-  height: 12px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
   background: currentColor;
 }
 
 .header__status--connected {
-  color: var(--granted);
+  color: var(--status-success);
+  background: var(--status-success-bg);
 }
 .header__status--connecting {
-  color: var(--warning);
+  color: var(--status-warning);
+  background: var(--status-warning-bg);
 }
 .header__status--offline,
 .header__status--unavailable {
-  color: var(--denied);
+  color: var(--status-danger);
+  background: var(--status-danger-bg);
 }
 
 .header__clock {
   font-variant-numeric: tabular-nums;
   font-size: clamp(18px, 1.8vw, 28px);
-  font-weight: 600;
-  color: var(--ink-strong);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--text-primary);
 }
 
 /* Discreet on purpose: the booth screen is for watching, not for navigating. */
 .header__admin {
-  font-size: clamp(12px, 1vw, 15px);
-  color: var(--ink-soft);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
   text-decoration: none;
-  border: 1px solid var(--line);
+  border: 1px solid var(--border-subtle);
   border-radius: 999px;
-  padding: 5px 12px;
+  padding: 8px 16px;
 }
 
 .header__admin:hover {
-  color: var(--ink-strong);
-  border-color: var(--accent);
+  color: var(--gold-primary);
+  border-color: var(--gold-primary);
 }
 
-/* Current passage ------------------------------------------------------- */
+.icon-button {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  box-shadow: var(--card-shadow);
+  cursor: pointer;
+}
+
+.icon-button:hover {
+  color: var(--gold-primary);
+  border-color: var(--gold-primary);
+}
+
+/* Current passage --------------------------------------------------------- */
 
 .current {
   display: grid;
   grid-template-columns: auto 1fr;
   align-items: center;
-  gap: clamp(20px, 3vw, 56px);
-  padding: clamp(16px, 3vh, 40px);
-  border-radius: 20px;
-  border: 3px solid var(--line);
-  background: var(--card);
+  gap: clamp(20px, 3vw, 52px);
+  padding: clamp(16px, 3vh, 34px);
+  border-radius: var(--radius-card);
+  border: 2px solid var(--card-border);
+  background: var(--card-gradient);
+  box-shadow: var(--card-shadow);
   animation: reveal 260ms ease-out;
   min-height: 0;
 }
 
 .current--granted {
-  border-color: var(--granted);
+  border-color: var(--status-success-border);
 }
 .current--denied {
-  border-color: var(--denied);
+  border-color: var(--status-danger-border);
 }
 
 @keyframes reveal {
@@ -113,26 +145,44 @@
 
 .current__photos {
   display: flex;
-  gap: clamp(10px, 1.4vw, 20px);
+  gap: clamp(10px, 1.4vw, 18px);
 }
 
 .shot {
   margin: 0;
   display: grid;
-  gap: 6px;
+  gap: 8px;
   justify-items: center;
 }
 
 .shot__caption {
-  font-size: clamp(11px, 1vw, 15px);
+  font-size: clamp(10px, 1vw, 12px);
+  font-weight: var(--label-weight);
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--ink-soft);
+  color: var(--label-caps);
 }
 
-/* Two portraits share the space the single one had. */
+.photo {
+  object-fit: cover;
+  border-radius: var(--radius-control);
+  background: var(--placeholder-surface);
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  border: 1px solid var(--border-subtle);
+}
+
+.photo--large {
+  width: clamp(180px, 25vw, 330px);
+  aspect-ratio: 3 / 4;
+  font-size: clamp(48px, 7vw, 92px);
+}
+
 .current__photos--paired .photo--large {
-  width: clamp(128px, 17vw, 250px);
+  width: clamp(128px, 17vw, 240px);
 }
 
 /* The capture is a wide-angle frame with the person wherever the camera caught
@@ -141,25 +191,8 @@
   object-fit: contain;
 }
 
-.photo {
-  object-fit: cover;
-  border-radius: 16px;
-  background: var(--placeholder);
-  display: grid;
-  place-items: center;
-  font-weight: 700;
-  color: var(--ink-soft);
-  flex-shrink: 0;
-}
-
-.photo--large {
-  width: clamp(180px, 26vw, 360px);
-  aspect-ratio: 3 / 4;
-  font-size: clamp(48px, 7vw, 96px);
-}
-
 .photo--small {
-  width: clamp(52px, 5vw, 76px);
+  width: clamp(52px, 5vw, 74px);
   aspect-ratio: 1;
   border-radius: 12px;
   font-size: clamp(16px, 1.6vw, 22px);
@@ -171,109 +204,109 @@
 
 .current__name {
   margin: 0;
-  font-size: clamp(32px, 5vw, 76px);
+  font-size: clamp(30px, 4.6vw, 68px);
   line-height: 1.05;
   font-weight: 700;
-  color: var(--ink-strong);
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
   overflow-wrap: break-word;
 }
 
 .current__location {
-  margin: clamp(8px, 1.5vh, 20px) 0 0;
-  font-size: clamp(26px, 4vw, 60px);
+  margin: clamp(8px, 1.5vh, 18px) 0 0;
+  font-size: clamp(26px, 3.8vw, 56px);
   font-weight: 700;
-  color: var(--accent);
+  letter-spacing: -0.01em;
+  color: var(--gold-primary);
 }
 
 .current__location--missing {
-  font-size: clamp(18px, 2vw, 30px);
-  font-weight: 500;
-  color: var(--ink-soft);
+  font-size: clamp(16px, 1.8vw, 26px);
+  font-weight: 400;
+  color: var(--text-secondary);
 }
 
 .current__badges {
-  margin: clamp(10px, 2vh, 24px) 0 0;
+  margin: clamp(10px, 2vh, 22px) 0 0;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 12px;
 }
 
-.current__verdict {
-  display: inline-block;
-  padding: 6px 18px;
-  border-radius: 999px;
-  font-size: clamp(15px, 1.4vw, 22px);
-  font-weight: 600;
-}
-
+.current__verdict,
 .current__device {
   display: inline-block;
-  padding: 6px 18px;
+  padding: 7px 18px;
   border-radius: 999px;
-  border: 1px solid var(--line);
-  font-size: clamp(15px, 1.4vw, 22px);
-  font-weight: 600;
-  color: var(--ink);
+  font-size: clamp(11px, 1.1vw, 15px);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  border: 1px solid transparent;
 }
 
 .current__verdict--granted {
-  background: var(--granted-bg);
-  color: var(--granted);
+  background: var(--status-success-bg);
+  border-color: var(--status-success-border);
+  color: var(--status-success);
 }
 .current__verdict--denied {
-  background: var(--denied-bg);
-  color: var(--denied);
+  background: var(--status-danger-bg);
+  border-color: var(--status-danger-border);
+  color: var(--status-danger);
+}
+
+.current__device {
+  background: var(--gold-glow);
+  border-color: var(--gold-primary);
+  color: var(--gold-primary);
 }
 
 .current__meta {
-  margin: 10px 0 0;
-  font-size: clamp(14px, 1.2vw, 20px);
-  color: var(--ink-soft);
+  margin: 12px 0 0;
+  font-size: clamp(12px, 1.1vw, 16px);
+  font-weight: 300;
+  color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
 
-/* Waiting --------------------------------------------------------------- */
+/* Waiting ----------------------------------------------------------------- */
 
 .waiting {
   display: grid;
   place-content: center;
   text-align: center;
   gap: 12px;
-  border: 2px dashed var(--line);
-  border-radius: 20px;
+  border: 1px dashed var(--border-subtle);
+  border-radius: var(--radius-card);
 }
 
 .waiting__title {
   margin: 0;
-  font-size: clamp(24px, 3vw, 44px);
+  font-size: clamp(22px, 2.6vw, 40px);
   font-weight: 600;
-  color: var(--ink-strong);
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
 }
 
 .waiting__hint {
   margin: 0;
-  font-size: clamp(15px, 1.3vw, 20px);
-  color: var(--ink-soft);
+  font-size: clamp(13px, 1.2vw, 17px);
+  font-weight: 300;
+  color: var(--text-secondary);
 }
 
-/* History --------------------------------------------------------------- */
+/* History ----------------------------------------------------------------- */
 
 .history {
-  border-top: 1px solid var(--line);
-  padding-top: clamp(8px, 1.5vh, 16px);
-}
-
-.history__label {
-  font-size: clamp(12px, 1vw, 15px);
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--ink-soft);
+  border-top: 1px solid var(--divider);
+  padding-top: clamp(8px, 1.5vh, 14px);
 }
 
 .history__list {
   display: flex;
-  gap: clamp(10px, 1.4vw, 20px);
+  gap: clamp(10px, 1.4vw, 18px);
   margin: 10px 0 0;
   padding: 0 0 4px;
   list-style: none;
@@ -285,13 +318,19 @@
   justify-items: center;
   gap: 4px;
   flex: 0 0 auto;
-  width: clamp(78px, 8vw, 116px);
+  width: clamp(78px, 8vw, 112px);
   text-align: center;
 }
 
+.history__item:hover .photo--small {
+  border-color: var(--gold-primary);
+  box-shadow: 0 0 0 2px var(--gold-glow);
+}
+
 .history__name {
-  font-size: clamp(11px, 0.9vw, 14px);
-  color: var(--ink);
+  font-size: clamp(11px, 0.9vw, 13px);
+  font-weight: 500;
+  color: var(--text-secondary);
   line-height: 1.2;
   overflow: hidden;
   display: -webkit-box;
@@ -300,8 +339,11 @@
 }
 
 .history__device {
-  font-size: clamp(10px, 0.85vw, 13px);
-  color: var(--accent);
+  font-size: clamp(9px, 0.8vw, 11px);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gold-primary);
   line-height: 1.2;
   overflow: hidden;
   display: -webkit-box;
@@ -310,17 +352,13 @@
 }
 
 .history__time {
-  font-size: clamp(10px, 0.85vw, 13px);
-  color: var(--ink-soft);
+  font-size: clamp(10px, 0.85vw, 12px);
+  font-weight: 300;
+  color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
 
-.history__item:hover .photo--small {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-/* Hover preview ---------------------------------------------------------- */
+/* Hover preview ----------------------------------------------------------- */
 
 /* Fixed, positioned above the strip: the list scrolls sideways and an
    absolutely positioned card would be clipped by that container. */
@@ -328,11 +366,11 @@
   position: fixed;
   width: 320px;
   box-sizing: border-box;
-  padding: 14px;
-  border-radius: 14px;
-  border: 1px solid var(--line);
-  background: var(--card);
-  box-shadow: 0 18px 44px rgb(0 0 0 / 45%);
+  padding: 16px;
+  border-radius: var(--radius-card);
+  border: 1px solid var(--card-border);
+  background: var(--card-gradient);
+  box-shadow: var(--overlay-shadow);
   pointer-events: none;
   z-index: 30;
 }
@@ -340,39 +378,40 @@
 .preview__photos {
   display: flex;
   gap: 10px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 .photo--preview {
-  width: 140px;
+  width: 138px;
   aspect-ratio: 3 / 4;
-  font-size: 34px;
+  font-size: 32px;
 }
 
 .preview__name {
   margin: 0;
-  font-size: 19px;
-  font-weight: 700;
-  color: var(--ink-strong);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text-primary);
   line-height: 1.2;
 }
 
 .preview__location {
-  margin: 4px 0 0;
+  margin: 6px 0 0;
   font-size: 22px;
   font-weight: 700;
-  color: var(--accent);
+  color: var(--gold-primary);
 }
 
 .preview__location--missing {
-  font-size: 15px;
-  font-weight: 500;
-  color: var(--ink-soft);
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--text-secondary);
 }
 
 .preview__meta {
-  margin: 6px 0 0;
-  font-size: 13px;
-  color: var(--ink-soft);
+  margin: 8px 0 0;
+  font-size: 12px;
+  font-weight: 300;
+  color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }

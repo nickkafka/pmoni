@@ -1,47 +1,147 @@
-:root {
-  --surface: #f4f5f7;
-  --card: #ffffff;
-  --placeholder: #dfe2e8;
-  --line: #d5d9e0;
-  --ink: #3f4653;
-  --ink-strong: #12151c;
-  --ink-soft: #6b7280;
-  --accent: #1d4ed8;
-  --granted: #15803d;
-  --granted-bg: rgba(21, 128, 61, 0.12);
-  --denied: #b91c1c;
-  --denied-bg: rgba(185, 28, 28, 0.12);
-  --warning: #b45309;
-  --pending-bg: rgba(180, 83, 9, 0.07);
+/* Prever — Dark Gold. Tokens em §2 do docs/DESIGN_SYSTEM.md.
+   Escuro é o padrão; o tema claro sobrescreve por [data-theme="light"], e nenhum
+   componente pode usar cor fora destes tokens (§8.1). */
 
-  font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
-  color-scheme: light dark;
+:root {
+  /* Dourado — acento único */
+  --gold-primary: #ffc000;
+  --gold-bright: #ffd340;
+  --gold-dim: #b88a00;
+  --gold-glow: rgba(255, 192, 0, 0.18);
+  --gold-cta: linear-gradient(135deg, #ffd700, #ffc000, #ff9f00);
+  --gold-cta-shadow: 0 6px 20px rgba(255, 192, 0, 0.35);
+  --text-on-gold: #08090e;
+
+  /* Superfícies */
+  --bg-base: #08090e;
+  --bg-page: radial-gradient(ellipse at top center, #131828 0%, #08090e 55%, #05060a 100%);
+  --bg-elevated: #0f111a;
+  --bg-overlay: #161926;
+  --card-gradient: linear-gradient(160deg, #14141b 0%, #0b0b10 100%);
+  --card-border: rgba(255, 192, 0, 0.1);
+  --card-shadow: none;
+  --overlay-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+  --input-bg: linear-gradient(160deg, #14141b 0%, #0b0b10 100%);
+  --input-border: rgba(255, 255, 255, 0.1);
+  --placeholder-surface: #14141b;
+
+  /* Texto */
+  --text-primary: #ffffff;
+  --text-secondary: rgba(255, 255, 255, 0.55);
+  --text-muted: rgba(255, 255, 255, 0.4);
+  --label-caps: rgba(255, 192, 0, 0.65);
+  --label-weight: 300;
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --divider: rgba(255, 255, 255, 0.06);
+
+  /* Status — cor / 12% / 30% (§2.4) */
+  --status-warning: #ffc000;
+  --status-warning-bg: rgba(255, 192, 0, 0.12);
+  --status-warning-border: rgba(255, 192, 0, 0.3);
+  --status-info: #60a5fa;
+  --status-info-bg: rgba(96, 165, 250, 0.12);
+  --status-success: #34d399;
+  --status-success-bg: rgba(52, 211, 153, 0.12);
+  --status-success-border: rgba(52, 211, 153, 0.3);
+  --status-danger: #f87171;
+  --status-danger-bg: rgba(248, 113, 113, 0.12);
+  --status-danger-border: rgba(248, 113, 113, 0.3);
+  --status-neutral: #9ca3af;
+
+  --radius-card: 18px;
+  --radius-control: 14px;
+
+  font-family: 'Montserrat', 'Inter', ui-sans-serif, system-ui, sans-serif;
+  color-scheme: dark;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --surface: #0d1017;
-    --card: #161b24;
-    --placeholder: #232a36;
-    --line: #2c3442;
-    --ink: #c3cad6;
-    --ink-strong: #f3f5f9;
-    --ink-soft: #8b94a4;
-    --accent: #7aa2ff;
-    --granted: #4ade80;
-    --granted-bg: rgba(74, 222, 128, 0.14);
-    --denied: #f87171;
-    --denied-bg: rgba(248, 113, 113, 0.14);
-    --warning: #fbbf24;
-    --pending-bg: rgba(251, 191, 36, 0.07);
+[data-theme='light'] {
+  --gold-primary: #b87800;
+  --gold-bright: #d99000;
+  --gold-dim: #7a5000;
+  --gold-glow: rgba(184, 120, 0, 0.1);
+
+  --bg-base: #f4f5f7;
+  --bg-page: radial-gradient(ellipse at top, #f7f8fa 0%, #eef0f4 60%, #e4e7ec 100%);
+  --bg-elevated: #ffffff;
+  --bg-overlay: #e8eaee;
+  --card-gradient: linear-gradient(135deg, #ffffff 0%, #f5f6f8 100%);
+  --card-border: rgba(0, 0, 0, 0.07);
+  --card-shadow: 0 1px 6px rgba(0, 0, 0, 0.07);
+  /* Sombra leve no claro: a pesada suja o layout (§8.8). */
+  --overlay-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+  --input-bg: #ffffff;
+  --input-border: rgba(0, 0, 0, 0.12);
+  --placeholder-surface: #e4e7ec;
+
+  --text-primary: #0a0b0e;
+  --text-secondary: #4a5060;
+  --text-muted: #8a909e;
+  --label-caps: rgba(0, 0, 0, 0.55);
+  --label-weight: 600;
+  --border-subtle: rgba(0, 0, 0, 0.07);
+  --divider: rgba(0, 0, 0, 0.07);
+
+  --status-warning: #b87800;
+  --status-info: #1d4ed8;
+  --status-success: #047857;
+  --status-danger: #b91c1c;
+  --status-neutral: #6b7280;
+
+  color-scheme: light;
+}
+
+/* Troca suave entre os temas (§4) */
+*,
+*::before,
+*::after {
+  transition:
+    background-color 0.35s ease,
+    color 0.35s ease,
+    border-color 0.35s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none;
   }
 }
 
 body {
   margin: 0;
-  background: var(--surface);
+  color: var(--text-primary);
+  background: var(--bg-page);
+  background-attachment: fixed;
+  min-height: 100svh;
+}
+
+/* Ruído sobre o fundo, para evitar banding no degradê (§4) */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.025;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.6 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+
+#root {
+  position: relative;
+  z-index: 1;
+}
+
+/* Micro-label: a assinatura do sistema, abre toda seção (§3, §6.2) */
+.label-caps {
+  font-size: 11px;
+  font-weight: var(--label-weight);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--label-caps);
 }

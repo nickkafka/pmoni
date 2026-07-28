@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { MouseEvent as ReactMouseEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { useAccessEventStream } from './accessEventsContext'
+import { ThemeToggle } from './ThemeToggle'
 import type { AccessEventMessage, ConnectionStatus } from './types'
 import './PorterScreen.css'
 
@@ -178,7 +179,7 @@ function History({ events }: { events: AccessEventMessage[] }) {
 
   return (
     <footer className="history">
-      <span className="history__label">Anteriores</span>
+      <span className="label-caps">Anteriores</span>
       <ul className="history__list">
         {events.map((event) => (
           <li
@@ -221,6 +222,7 @@ export default function PorterScreen() {
           {STATUS_LABEL[status]}
         </span>
         <Clock />
+        <ThemeToggle />
         <Link className="header__admin" to="/admin">
           Administração
         </Link>
