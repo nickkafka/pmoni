@@ -1,4 +1,5 @@
 import asyncio
+from collections import deque
 from contextlib import suppress
 
 from app.application.ports.device_lookup import DeviceLookup
@@ -20,12 +21,13 @@ class AccessEventEnricher:
 
     def __init__(
         self, device_manager: DeviceManager, resident_lookup: ResidentLookup,
-        device_lookup: DeviceLookup | None = None,
+        device_lookup: DeviceLookup | None = None, *, remembered: int = 10,
     ) -> None:
         self._device_manager = device_manager
         self._resident_lookup = resident_lookup
         self._device_lookup = device_lookup
         self._broadcaster: EventBroadcaster[EnrichedAccessEvent] = EventBroadcaster()
+        self._recent: deque[EnrichedAccessEvent] = deque(maxlen=remembered)
         self._subscription: asyncio.Queue[AccessEvent] | None = None
         self._task: asyncio.Task[None] | None = None
 
@@ -53,11 +55,21 @@ class AccessEventEnricher:
     def unsubscribe(self, queue: asyncio.Queue[EnrichedAccessEvent]) -> None:
         self._broadcaster.unsubscribe(queue)
 
+    def recent(self) -> tuple[EnrichedAccessEvent, ...]:
+        """The last passages, oldest first, for a screen that just (re)connected.
+
+        A porter who reloads the page, or whose connection dropped, would otherwise
+        face an empty screen and no way to tell whether anyone had passed.
+        """
+        return tuple(self._recent)
+
     async def _run(self) -> None:
         assert self._subscription is not None
         while True:
             event = await self._subscription.get()
-            self._broadcaster.publish(self._enrich(event))
+            enriched = self._enrich(event)
+            self._recent.append(enriched)
+            self._broadcaster.publish(enriched)
 
     def _enrich(self, event: AccessEvent) -> EnrichedAccessEvent:
         """Publish the event even when the resident is unknown or the lookup fails."""

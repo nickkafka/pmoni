@@ -51,6 +51,10 @@
   margin-inline-start: auto;
 }
 
+.panel__title .button + .button {
+  margin-inline-start: 8px;
+}
+
 .panel__hint {
   margin: 12px 0 0;
   color: var(--ink-soft);

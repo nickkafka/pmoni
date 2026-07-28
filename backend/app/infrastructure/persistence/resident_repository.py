@@ -55,6 +55,18 @@ class SqlAlchemyResidentRepository(ResidentRepository):
         self._session.refresh(record)
         return self._to_entity(record)
 
+    def drop_missing(self, device_id: int, keep: set[str]) -> int:
+        stale = self._session.scalars(
+            select(ResidentRecord).where(
+                ResidentRecord.device_id == device_id,
+                ResidentRecord.employee_no.not_in(keep),
+            )
+        ).all()
+        for record in stale:
+            self._session.delete(record)
+        self._session.commit()
+        return len(stale)
+
     def _find(self, device_id: int, employee_no: str) -> ResidentRecord | None:
         return self._session.scalar(
             select(ResidentRecord).where(

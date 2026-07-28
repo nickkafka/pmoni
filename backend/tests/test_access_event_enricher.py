@@ -139,6 +139,36 @@ class AccessEventEnricherTests(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(enriched.device)
         assert enriched.resident is not None
 
+    async def test_remembers_recent_passages_for_a_screen_that_reconnects(self) -> None:
+        manager = FakeDeviceManager()
+        enricher = AccessEventEnricher(manager, FakeLookup({(1, "2"): RESIDENT}))
+        await enricher.start()
+        subscription = enricher.subscribe()
+        try:
+            manager.queue.put_nowait(access_event())
+            await asyncio.wait_for(subscription.get(), timeout=1)
+
+            remembered = enricher.recent()
+
+            self.assertEqual([item.event.external_id for item in remembered], ["261143"])
+        finally:
+            await enricher.stop()
+
+    async def test_forgets_passages_beyond_what_a_screen_shows(self) -> None:
+        manager = FakeDeviceManager()
+        enricher = AccessEventEnricher(manager, FakeLookup({}), remembered=2)
+        await enricher.start()
+        subscription = enricher.subscribe()
+        try:
+            for serial in ("1", "2", "3"):
+                event = AccessEvent(serial, 1, "2", "face", True, datetime(2026, 7, 27, tzinfo=UTC))
+                manager.queue.put_nowait(event)
+                await asyncio.wait_for(subscription.get(), timeout=1)
+
+            self.assertEqual([item.event.external_id for item in enricher.recent()], ["2", "3"])
+        finally:
+            await enricher.stop()
+
     async def test_stop_releases_the_device_subscription(self) -> None:
         manager = FakeDeviceManager()
         enricher = AccessEventEnricher(manager, FakeLookup({}))

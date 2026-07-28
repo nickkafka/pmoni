@@ -34,3 +34,8 @@ class ResidentRepository(ABC):
     @abstractmethod
     def set_location(self, resident_id: int, *, apartment: str | None, block: str | None) -> Resident | None:
         raise NotImplementedError
+
+    @abstractmethod
+    def drop_missing(self, device_id: int, keep: set[str]) -> int:
+        """Delete this device's enrollments whose identifiers it no longer reports."""
+        raise NotImplementedError

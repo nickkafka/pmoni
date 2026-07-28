@@ -12,6 +12,7 @@ class ResidentSyncReport:
     created: int
     updated: int
     photos_downloaded: int
+    removed: int
     failures: int
 
 
@@ -32,9 +33,11 @@ class ResidentSyncService:
         if device.id is None:
             raise ValueError("O dispositivo precisa estar persistido para sincronizar.")
         directory = self._directory_factory.create(device)
-        created = updated = downloaded = failures = 0
+        created = updated = downloaded = failures = removed = 0
+        seen: set[str] = set()
         try:
             async for person in directory.list_enrolled():
+                seen.add(person.employee_no)
                 try:
                     photo = await self._photo_for(
                         directory, device.id, person, refresh_photos=refresh_photos
@@ -49,13 +52,18 @@ class ResidentSyncService:
                     created += 1
                 else:
                     updated += 1
+            # Only after reading the whole directory, and never on an empty answer:
+            # a device that momentarily reports nobody must not erase its people.
+            if seen:
+                removed = self._repository.drop_missing(device.id, seen)
         finally:
             await directory.close()
         logger.info(
-            "Sincronização do dispositivo {}: {} novos, {} atualizados, {} fotos, {} falhas.",
-            device.id, created, updated, downloaded, failures,
+            "Sincronização do dispositivo {}: {} novos, {} atualizados, {} fotos, "
+            "{} removidos, {} falhas.",
+            device.id, created, updated, downloaded, removed, failures,
         )
-        return ResidentSyncReport(created, updated, downloaded, failures)
+        return ResidentSyncReport(created, updated, downloaded, removed, failures)
 
     async def _photo_for(
         self, directory, device_id: int, person: EnrolledPerson, *, refresh_photos: bool

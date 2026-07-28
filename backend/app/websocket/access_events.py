@@ -22,6 +22,10 @@ async def access_events(websocket: WebSocket) -> None:
 
     subscription = enricher.subscribe()
     try:
+        # Replayed before streaming so a screen that just opened is not blank. The
+        # interface ignores passages it already knows.
+        for passage in enricher.recent():
+            await websocket.send_json(_event_message(passage))
         while True:
             event_task = asyncio.create_task(subscription.get())
             receive_task = asyncio.create_task(websocket.receive())

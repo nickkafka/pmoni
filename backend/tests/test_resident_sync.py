@@ -72,6 +72,12 @@ class FakeRepository(ResidentRepository):
     def set_location(self, resident_id, *, apartment, block):
         raise NotImplementedError
 
+    def drop_missing(self, device_id: int, keep: set[str]) -> int:
+        stale = [k for k in self.rows if k[0] == device_id and k[1] not in keep]
+        for key in stale:
+            del self.rows[key]
+        return len(stale)
+
 
 def person(employee_no: str, name: str, reference: str | None = None) -> EnrolledPerson:
     return EnrolledPerson(employee_no, name, reference)
@@ -141,6 +147,39 @@ class ResidentSyncServiceTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual((report.created, report.photos_downloaded), (1, 0))
         self.assertEqual(directory.downloaded, [])
+
+    async def test_removes_someone_the_device_no_longer_lists(self) -> None:
+        directory = FakeDirectory([person("2", "nk"), person("195", "Janaina")])
+        repository = FakeRepository()
+        service = ResidentSyncService(repository, FakeFactory(directory))
+        await service.sync(DEVICE)
+
+        directory.people = [person("2", "nk")]
+        report = await service.sync(DEVICE)
+
+        self.assertEqual(report.removed, 1)
+        self.assertEqual(list(repository.rows), [(1, "2")])
+
+    async def test_never_empties_a_device_that_answered_with_nobody(self) -> None:
+        directory = FakeDirectory([person("2", "nk")])
+        repository = FakeRepository()
+        service = ResidentSyncService(repository, FakeFactory(directory))
+        await service.sync(DEVICE)
+
+        directory.people = []
+        report = await service.sync(DEVICE)
+
+        self.assertEqual(report.removed, 0)
+        self.assertEqual(list(repository.rows), [(1, "2")])
+
+    async def test_does_not_touch_the_enrollments_of_other_devices(self) -> None:
+        repository = FakeRepository()
+        entrada = Device(9, "Entrada", "192.168.1.20", 80, "admin", None, True)
+        await ResidentSyncService(repository, FakeFactory(FakeDirectory([person("7", "Ana")]))).sync(entrada)
+
+        await ResidentSyncService(repository, FakeFactory(FakeDirectory([person("2", "nk")]))).sync(DEVICE)
+
+        self.assertEqual(sorted(repository.rows), [(1, "2"), (9, "7")])
 
     async def test_keeps_apart_two_devices_that_gave_the_same_identifier(self) -> None:
         """Devices enrolled separately reuse numbers for different people."""

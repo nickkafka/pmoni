@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useAccessEvents } from './useAccessEvents'
+import { useAccessEventStream } from './accessEventsContext'
 import type { AccessEventMessage, ConnectionStatus } from './types'
 import './PorterScreen.css'
 
@@ -135,7 +135,7 @@ function Clock() {
 }
 
 export default function PorterScreen() {
-  const { events, status } = useAccessEvents()
+  const { events, status } = useAccessEventStream()
   const [current, ...previous] = events
 
   return (

@@ -46,3 +46,9 @@ agrupamento reduz naturalmente.
 A migração preserva os apartamentos já digitados no cadastro em que foram
 informados. Um apartamento que tenha sido digitado enquanto o identificador
 apontava para a pessoa errada continua onde estava, e precisa ser conferido.
+
+A sincronização também apaga os cadastros que o equipamento deixou de listar.
+Sem isso, uma reexportação do Sigma que troque identificadores deixaria pessoas
+fantasma na interface para sempre. A remoção só acontece depois de percorrer todo
+o diretório e nunca quando o equipamento responde sem ninguém, para que uma falha
+momentânea não esvazie o cadastro.

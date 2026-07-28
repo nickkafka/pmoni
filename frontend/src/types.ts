@@ -54,5 +54,6 @@ export type SyncReport = {
   created: number
   updated: number
   photos_downloaded: number
+  removed: number
   failures: number
 }
