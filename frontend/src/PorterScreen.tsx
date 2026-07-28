@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import type { MouseEvent as ReactMouseEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { useAccessEventStream } from './accessEventsContext'
 import type { AccessEventMessage, ConnectionStatus } from './types'
@@ -31,7 +32,13 @@ function locationOf(event: AccessEventMessage): string | null {
   return resident.block ? `Apto ${resident.apartment} · Bloco ${resident.block}` : `Apto ${resident.apartment}`
 }
 
-function Photo({ event, size }: { event: AccessEventMessage; size: 'large' | 'small' }) {
+function Photo({
+  event,
+  size,
+}: {
+  event: AccessEventMessage
+  size: 'large' | 'small' | 'preview'
+}) {
   const resident = event.resident
   const [failed, setFailed] = useState(false)
   useEffect(() => setFailed(false), [resident?.photo_url])
@@ -53,19 +60,33 @@ function Photo({ event, size }: { event: AccessEventMessage; size: 'large' | 'sm
   )
 }
 
-function Capture({ url }: { url: string }) {
+/** Renders nothing once the capture is gone: the store only keeps recent ones. */
+function Capture({
+  url,
+  size,
+  caption,
+}: {
+  url: string
+  size: 'large' | 'preview'
+  caption?: string
+}) {
   const [failed, setFailed] = useState(false)
   useEffect(() => setFailed(false), [url])
   if (failed) return null
+
+  const image = (
+    <img
+      className={`photo photo--${size} photo--capture`}
+      src={url}
+      alt="Imagem capturada na passagem"
+      onError={() => setFailed(true)}
+    />
+  )
+  if (!caption) return image
   return (
     <figure className="shot">
-      <img
-        className="photo photo--large photo--capture"
-        src={url}
-        alt="Imagem capturada na passagem"
-        onError={() => setFailed(true)}
-      />
-      <figcaption className="shot__caption">Agora</figcaption>
+      {image}
+      <figcaption className="shot__caption">{caption}</figcaption>
     </figure>
   )
 }
@@ -80,7 +101,9 @@ function CurrentEvent({ event }: { event: AccessEventMessage }) {
           <Photo event={event} size="large" />
           <figcaption className="shot__caption">Cadastro</figcaption>
         </figure>
-        {event.snapshot_url && <Capture url={event.snapshot_url} />}
+        {event.snapshot_url && (
+          <Capture url={event.snapshot_url} size="large" caption="Agora" />
+        )}
       </div>
       <div className="current__details">
         <h1 className="current__name">{resident?.name ?? 'Não cadastrado'}</h1>
@@ -106,14 +129,64 @@ function CurrentEvent({ event }: { event: AccessEventMessage }) {
   )
 }
 
+const PREVIEW_WIDTH = 320
+const PREVIEW_GAP = 12
+
+type PreviewAt = { event: AccessEventMessage; left: number; bottom: number }
+
+function Preview({ at }: { at: PreviewAt }) {
+  const { event } = at
+  const resident = event.resident
+  const location = locationOf(event)
+  return (
+    <aside className="preview" style={{ left: at.left, bottom: at.bottom }}>
+      <div className="preview__photos">
+        <figure className="shot">
+          <Photo event={event} size="preview" />
+          <figcaption className="shot__caption">Cadastro</figcaption>
+        </figure>
+        {event.snapshot_url && (
+          <Capture url={event.snapshot_url} size="preview" caption="Agora" />
+        )}
+      </div>
+      <p className="preview__name">{resident?.name ?? 'Não cadastrado'}</p>
+      <p className={`preview__location${location ? '' : ' preview__location--missing'}`}>
+        {location ?? (resident ? 'Apartamento não cadastrado' : `ID ${event.employee_no ?? '—'}`)}
+      </p>
+      <p className="preview__meta">
+        {timeOf(event)} · {deviceOf(event)}
+      </p>
+    </aside>
+  )
+}
+
 function History({ events }: { events: AccessEventMessage[] }) {
+  const [preview, setPreview] = useState<PreviewAt | null>(null)
   if (events.length === 0) return null
+
+  // Anchored above the strip, which sits at the bottom of the screen, and kept
+  // inside the viewport so the first and last entries stay readable.
+  const show = (event: AccessEventMessage) => (pointer: ReactMouseEvent<HTMLLIElement>) => {
+    const anchor = pointer.currentTarget.getBoundingClientRect()
+    const centred = anchor.left + anchor.width / 2 - PREVIEW_WIDTH / 2
+    setPreview({
+      event,
+      left: Math.max(PREVIEW_GAP, Math.min(centred, window.innerWidth - PREVIEW_WIDTH - PREVIEW_GAP)),
+      bottom: window.innerHeight - anchor.top + PREVIEW_GAP,
+    })
+  }
+
   return (
     <footer className="history">
       <span className="history__label">Anteriores</span>
       <ul className="history__list">
         {events.map((event) => (
-          <li key={`${event.device_id}:${event.external_id}`} className="history__item">
+          <li
+            key={`${event.device_id}:${event.external_id}`}
+            className="history__item"
+            onMouseEnter={show(event)}
+            onMouseLeave={() => setPreview(null)}
+          >
             <Photo event={event} size="small" />
             <span className="history__name">{event.resident?.name ?? 'Não cadastrado'}</span>
             <span className="history__device">{deviceOf(event)}</span>
@@ -121,6 +194,7 @@ function History({ events }: { events: AccessEventMessage[] }) {
           </li>
         ))}
       </ul>
+      {preview && <Preview at={preview} />}
     </footer>
   )
 }
