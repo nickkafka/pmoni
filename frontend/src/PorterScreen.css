@@ -185,10 +185,17 @@
   width: clamp(128px, 17vw, 240px);
 }
 
-/* The capture is a wide-angle frame with the person wherever the camera caught
-   them — often near an edge — so it is shown whole instead of cropped to fit. */
+/* The capture is a wide-angle frame in which the person lands low, because the
+   terminal looks down at them. Cropping from the centre would cut the face off,
+   so the crop is biased downwards. */
 .photo--capture {
+  object-position: center 72%;
+}
+
+/* The preview has room to show the frame whole, scene included. */
+.photo--preview.photo--capture {
   object-fit: contain;
+  object-position: center;
 }
 
 .photo--small {
