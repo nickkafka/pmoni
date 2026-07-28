@@ -13,33 +13,32 @@ class SqlAlchemyResidentRepository(ResidentRepository):
         self._session = session
 
     def list_all(self) -> list[Resident]:
-        records = self._session.scalars(select(ResidentRecord).order_by(ResidentRecord.name))
+        records = self._session.scalars(
+            select(ResidentRecord).order_by(ResidentRecord.name, ResidentRecord.device_id)
+        )
         return [self._to_entity(record) for record in records]
 
-    def get_by_employee_no(self, employee_no: str) -> Resident | None:
-        record = self._find(employee_no)
+    def find(self, device_id: int, employee_no: str) -> Resident | None:
+        record = self._find(device_id, employee_no)
         return self._to_entity(record) if record else None
 
-    def get_photo(self, employee_no: str) -> bytes | None:
-        record = self._find(employee_no)
+    def get_photo(self, resident_id: int) -> bytes | None:
+        record = self._session.get(ResidentRecord, resident_id)
         return record.photo if record else None
 
-    def photo_reference_of(self, employee_no: str) -> str | None:
-        record = self._find(employee_no)
+    def photo_reference_of(self, device_id: int, employee_no: str) -> str | None:
+        record = self._find(device_id, employee_no)
         if record is None or record.photo is None:
             return None
         return record.photo_reference
 
-    def save_enrollment(
-        self, person: EnrolledPerson, *, photo: bytes | None, device_id: int | None
-    ) -> bool:
-        record = self._find(person.employee_no)
+    def save_enrollment(self, device_id: int, person: EnrolledPerson, *, photo: bytes | None) -> bool:
+        record = self._find(device_id, person.employee_no)
         created = record is None
         if record is None:
-            record = ResidentRecord(employee_no=person.employee_no)
+            record = ResidentRecord(device_id=device_id, employee_no=person.employee_no)
             self._session.add(record)
         record.name = person.name
-        record.source_device_id = device_id
         record.synced_at = datetime.now(UTC)
         if photo is not None:
             record.photo = photo
@@ -47,8 +46,8 @@ class SqlAlchemyResidentRepository(ResidentRepository):
         self._session.commit()
         return created
 
-    def set_location(self, employee_no: str, *, apartment: str | None, block: str | None) -> Resident | None:
-        record = self._find(employee_no)
+    def set_location(self, resident_id: int, *, apartment: str | None, block: str | None) -> Resident | None:
+        record = self._session.get(ResidentRecord, resident_id)
         if record is None:
             return None
         record.apartment, record.block = apartment, block
@@ -56,15 +55,18 @@ class SqlAlchemyResidentRepository(ResidentRepository):
         self._session.refresh(record)
         return self._to_entity(record)
 
-    def _find(self, employee_no: str) -> ResidentRecord | None:
+    def _find(self, device_id: int, employee_no: str) -> ResidentRecord | None:
         return self._session.scalar(
-            select(ResidentRecord).where(ResidentRecord.employee_no == employee_no)
+            select(ResidentRecord).where(
+                ResidentRecord.device_id == device_id,
+                ResidentRecord.employee_no == employee_no,
+            )
         )
 
     @staticmethod
     def _to_entity(record: ResidentRecord) -> Resident:
         return Resident(
-            id=record.id, employee_no=record.employee_no, name=record.name,
-            apartment=record.apartment, block=record.block,
+            id=record.id, device_id=record.device_id, employee_no=record.employee_no,
+            name=record.name, apartment=record.apartment, block=record.block,
             has_photo=record.photo is not None, synced_at=record.synced_at,
         )

@@ -14,16 +14,16 @@ def access_event(employee_no: str | None = "2") -> AccessEvent:
 
 
 class FakeLookup(ResidentLookup):
-    def __init__(self, residents: dict[str, ResidentSummary], *, broken: bool = False) -> None:
+    def __init__(self, residents: dict[tuple[int, str], ResidentSummary], *, broken: bool = False) -> None:
         self.residents = residents
         self.broken = broken
-        self.queries: list[str] = []
+        self.queries: list[tuple[int, str]] = []
 
-    def find(self, employee_no: str) -> ResidentSummary | None:
-        self.queries.append(employee_no)
+    def find(self, device_id: int, employee_no: str) -> ResidentSummary | None:
+        self.queries.append((device_id, employee_no))
         if self.broken:
             raise RuntimeError("banco indisponível")
-        return self.residents.get(employee_no)
+        return self.residents.get((device_id, employee_no))
 
 
 class FakeDeviceManager:
@@ -66,15 +66,26 @@ class AccessEventEnricherTests(unittest.IsolatedAsyncioTestCase):
             await enricher.stop()
 
     async def test_attaches_the_resident_to_the_event(self) -> None:
-        enriched = await self.enrich(access_event(), FakeLookup({"2": RESIDENT}))
+        enriched = await self.enrich(access_event(), FakeLookup({(1, "2"): RESIDENT}))
 
         self.assertEqual(enriched.event.external_id, "261143")
         assert enriched.resident is not None
         self.assertEqual(enriched.resident.name, "nk")
         self.assertEqual(enriched.resident.apartment, "301")
 
+    async def test_does_not_borrow_the_person_another_device_gave_that_id(self) -> None:
+        """The identifier alone would have shown the photo of somebody else."""
+        outra_facial = ResidentSummary(70, "2", "naldo", None, None, True)
+
+        enriched = await self.enrich(
+            access_event(), FakeLookup({(9, "2"): outra_facial, (1, "2"): RESIDENT})
+        )
+
+        assert enriched.resident is not None
+        self.assertEqual(enriched.resident.name, "nk")
+
     async def test_publishes_an_unknown_person_without_resident(self) -> None:
-        enriched = await self.enrich(access_event("999"), FakeLookup({"2": RESIDENT}))
+        enriched = await self.enrich(access_event("999"), FakeLookup({(1, "2"): RESIDENT}))
 
         self.assertIsNone(enriched.resident)
         self.assertEqual(enriched.event.employee_no, "999")
@@ -95,7 +106,7 @@ class AccessEventEnricherTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_keeps_running_after_a_failed_lookup(self) -> None:
         manager = FakeDeviceManager()
-        lookup = FakeLookup({"2": RESIDENT}, broken=True)
+        lookup = FakeLookup({(1, "2"): RESIDENT}, broken=True)
         enricher = AccessEventEnricher(manager, lookup)
         await enricher.start()
         subscription = enricher.subscribe()
@@ -114,7 +125,7 @@ class AccessEventEnricherTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_names_the_device_the_event_came_from(self) -> None:
         enriched = await self.enrich(
-            access_event(), FakeLookup({"2": RESIDENT}), FakeDeviceLookup({1: "Portaria social"})
+            access_event(), FakeLookup({(1, "2"): RESIDENT}), FakeDeviceLookup({1: "Portaria social"})
         )
 
         assert enriched.device is not None
@@ -122,7 +133,7 @@ class AccessEventEnricherTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_publishes_the_event_when_the_device_lookup_fails(self) -> None:
         enriched = await self.enrich(
-            access_event(), FakeLookup({"2": RESIDENT}), FakeDeviceLookup({}, broken=True)
+            access_event(), FakeLookup({(1, "2"): RESIDENT}), FakeDeviceLookup({}, broken=True)
         )
 
         self.assertIsNone(enriched.device)

@@ -1,7 +1,11 @@
 # ADR 0007 — Diretório local de moradores sincronizado do equipamento
 
-**Status:** Aceito  
+**Status:** Aceito, com a chave corrigida pelo [ADR 0010](0010-enrollment-per-device.md)  
 **Data:** 2026-07-27
+
+> A premissa de que `employee_no` identifica a pessoa entre equipamentos se provou
+> falsa em campo e fazia a tela mostrar o rosto de outra pessoa. O ADR 0010 passa a
+> chavear o cadastro por equipamento; o restante desta decisão continua valendo.
 
 ## Contexto
 

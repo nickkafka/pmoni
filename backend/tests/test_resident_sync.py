@@ -42,30 +42,34 @@ class FakeFactory(PersonDirectoryFactory):
 
 class FakeRepository(ResidentRepository):
     def __init__(self) -> None:
-        self.rows: dict[str, dict] = {}
+        self.rows: dict[tuple[int, str], dict] = {}
 
     def list_all(self) -> list[Resident]:
         raise NotImplementedError
 
-    def get_by_employee_no(self, employee_no: str) -> Resident | None:
+    def find(self, device_id: int, employee_no: str) -> Resident | None:
         raise NotImplementedError
 
-    def get_photo(self, employee_no: str) -> bytes | None:
-        return self.rows.get(employee_no, {}).get("photo")
+    def get_photo(self, resident_id: int) -> bytes | None:
+        raise NotImplementedError
 
-    def photo_reference_of(self, employee_no: str) -> str | None:
-        row = self.rows.get(employee_no)
+    def photo_of(self, device_id: int, employee_no: str) -> bytes | None:
+        return self.rows.get((device_id, employee_no), {}).get("photo")
+
+    def photo_reference_of(self, device_id: int, employee_no: str) -> str | None:
+        row = self.rows.get((device_id, employee_no))
         return row.get("photo_reference") if row and row.get("photo") else None
 
-    def save_enrollment(self, person, *, photo, device_id) -> bool:
-        created = person.employee_no not in self.rows
-        row = self.rows.setdefault(person.employee_no, {})
-        row["name"], row["device_id"] = person.name, device_id
+    def save_enrollment(self, device_id, person, *, photo) -> bool:
+        key = (device_id, person.employee_no)
+        created = key not in self.rows
+        row = self.rows.setdefault(key, {})
+        row["name"] = person.name
         if photo is not None:
             row["photo"], row["photo_reference"] = photo, person.photo_reference
         return created
 
-    def set_location(self, employee_no, *, apartment, block):
+    def set_location(self, resident_id, *, apartment, block):
         raise NotImplementedError
 
 
@@ -81,7 +85,7 @@ class ResidentSyncServiceTests(unittest.IsolatedAsyncioTestCase):
         report = await ResidentSyncService(repository, FakeFactory(directory)).sync(DEVICE)
 
         self.assertEqual((report.created, report.updated, report.photos_downloaded), (2, 0, 2))
-        self.assertEqual(repository.get_photo("2"), b"jpeg-/face/2.jpg")
+        self.assertEqual(repository.photo_of(1, "2"), b"jpeg-/face/2.jpg")
         self.assertTrue(directory.closed)
 
     async def test_skips_downloading_an_unchanged_photo(self) -> None:
@@ -106,7 +110,7 @@ class ResidentSyncServiceTests(unittest.IsolatedAsyncioTestCase):
         report = await service.sync(DEVICE)
 
         self.assertEqual(report.photos_downloaded, 1)
-        self.assertEqual(repository.get_photo("2"), b"jpeg-/face/9.jpg")
+        self.assertEqual(repository.photo_of(1, "2"), b"jpeg-/face/9.jpg")
 
     async def test_refresh_forces_a_new_download(self) -> None:
         directory = FakeDirectory([person("2", "nk", "/face/2.jpg")])
@@ -126,8 +130,8 @@ class ResidentSyncServiceTests(unittest.IsolatedAsyncioTestCase):
         report = await ResidentSyncService(repository, FakeFactory(directory)).sync(DEVICE)
 
         self.assertEqual((report.created, report.failures), (1, 1))
-        self.assertEqual(repository.rows["2"]["name"], "nk")
-        self.assertIsNone(repository.get_photo("2"))
+        self.assertEqual(repository.rows[(1, "2")]["name"], "nk")
+        self.assertIsNone(repository.photo_of(1, "2"))
 
     async def test_stores_a_person_without_any_enrolled_face(self) -> None:
         repository = FakeRepository()
@@ -137,6 +141,21 @@ class ResidentSyncServiceTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual((report.created, report.photos_downloaded), (1, 0))
         self.assertEqual(directory.downloaded, [])
+
+    async def test_keeps_apart_two_devices_that_gave_the_same_identifier(self) -> None:
+        """Devices enrolled separately reuse numbers for different people."""
+        repository = FakeRepository()
+        portaria = FakeDirectory([person("2", "nk", "/face/nk.jpg")])
+        entrada = Device(9, "Entrada", "192.168.1.20", 80, "admin", None, True)
+        outra = FakeDirectory([person("2", "naldo", "/face/naldo.jpg")])
+
+        await ResidentSyncService(repository, FakeFactory(portaria)).sync(DEVICE)
+        await ResidentSyncService(repository, FakeFactory(outra)).sync(entrada)
+
+        self.assertEqual(repository.rows[(1, "2")]["name"], "nk")
+        self.assertEqual(repository.rows[(9, "2")]["name"], "naldo")
+        self.assertEqual(repository.photo_of(1, "2"), b"jpeg-/face/nk.jpg")
+        self.assertEqual(repository.photo_of(9, "2"), b"jpeg-/face/naldo.jpg")
 
     async def test_closes_the_directory_when_the_sync_fails(self) -> None:
         directory = FakeDirectory([])

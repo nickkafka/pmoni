@@ -18,10 +18,10 @@ class SessionScopedResidentLookup(ResidentLookup):
     def __init__(self, session_factory: Callable[[], Session]) -> None:
         self._session_factory = session_factory
 
-    def find(self, employee_no: str) -> ResidentSummary | None:
+    def find(self, device_id: int, employee_no: str) -> ResidentSummary | None:
         session = self._session_factory()
         try:
-            resident = SqlAlchemyResidentRepository(session).get_by_employee_no(employee_no)
+            resident = SqlAlchemyResidentRepository(session).find(device_id, employee_no)
             return resident.to_summary() if resident else None
         finally:
             session.close()

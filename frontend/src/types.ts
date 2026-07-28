@@ -30,6 +30,8 @@ export type ConnectionStatus = 'connecting' | 'connected' | 'offline' | 'unavail
 
 export type Resident = {
   id: number
+  /** Enrollments are issued per device: the ID alone does not name a person. */
+  device_id: number
   employee_no: string
   name: string
   apartment: string | null

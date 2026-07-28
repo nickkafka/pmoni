@@ -32,6 +32,6 @@ export async function remove(path: string): Promise<void> {
   }
 }
 
-export function photoUrl(employeeNo: string): string {
-  return `/residents/${encodeURIComponent(employeeNo)}/photo`
+export function photoUrl(residentId: number): string {
+  return `/residents/${residentId}/photo`
 }

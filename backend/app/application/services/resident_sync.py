@@ -29,19 +29,23 @@ class ResidentSyncService:
         self._directory_factory = directory_factory
 
     async def sync(self, device: Device, *, refresh_photos: bool = False) -> ResidentSyncReport:
+        if device.id is None:
+            raise ValueError("O dispositivo precisa estar persistido para sincronizar.")
         directory = self._directory_factory.create(device)
         created = updated = downloaded = failures = 0
         try:
             async for person in directory.list_enrolled():
                 try:
-                    photo = await self._photo_for(directory, person, refresh_photos=refresh_photos)
+                    photo = await self._photo_for(
+                        directory, device.id, person, refresh_photos=refresh_photos
+                    )
                 except Exception:
                     failures += 1
                     logger.exception("Falha ao obter a foto de {}.", person.employee_no)
                     photo = None
                 if photo is not None:
                     downloaded += 1
-                if self._repository.save_enrollment(person, photo=photo, device_id=device.id):
+                if self._repository.save_enrollment(device.id, person, photo=photo):
                     created += 1
                 else:
                     updated += 1
@@ -53,10 +57,13 @@ class ResidentSyncService:
         )
         return ResidentSyncReport(created, updated, downloaded, failures)
 
-    async def _photo_for(self, directory, person: EnrolledPerson, *, refresh_photos: bool) -> bytes | None:
+    async def _photo_for(
+        self, directory, device_id: int, person: EnrolledPerson, *, refresh_photos: bool
+    ) -> bytes | None:
         """Download the photo only when it is missing or its enrollment changed."""
         if person.photo_reference is None:
             return None
-        if not refresh_photos and self._repository.photo_reference_of(person.employee_no) == person.photo_reference:
+        stored = self._repository.photo_reference_of(device_id, person.employee_no)
+        if not refresh_photos and stored == person.photo_reference:
             return None
         return await directory.fetch_photo(person.photo_reference)

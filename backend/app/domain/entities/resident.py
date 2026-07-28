@@ -29,9 +29,14 @@ class EnrolledPerson:
 
 @dataclass(frozen=True, slots=True)
 class Resident:
-    """Person known to Monikraft, joined to external systems by ``employee_no``."""
+    """One enrollment, as the device that issued ``employee_no`` knows it.
+
+    The identifier is unique only within its device, so it never identifies a person
+    on its own.
+    """
 
     id: int
+    device_id: int
     employee_no: str
     name: str
     apartment: str | None

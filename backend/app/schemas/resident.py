@@ -7,6 +7,7 @@ class ResidentRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
+    device_id: int
     employee_no: str
     name: str
     apartment: str | None

@@ -83,5 +83,5 @@ def _resident_message(resident: ResidentSummary | None) -> dict | None:
         "name": resident.name,
         "apartment": resident.apartment,
         "block": resident.block,
-        "photo_url": f"/residents/{resident.employee_no}/photo" if resident.has_photo else None,
+        "photo_url": f"/residents/{resident.id}/photo" if resident.has_photo else None,
     }

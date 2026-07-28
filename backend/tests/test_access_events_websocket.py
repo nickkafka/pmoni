@@ -25,7 +25,7 @@ class AccessEventWebSocketTests(unittest.TestCase):
         self.assertEqual(message["name"], "nk")
         self.assertEqual(message["apartment"], "301")
         self.assertEqual(message["block"], "A")
-        self.assertEqual(message["photo_url"], "/residents/SIGMA-42/photo")
+        self.assertEqual(message["photo_url"], "/residents/52/photo")
 
     def test_reports_an_unknown_person_as_a_null_resident(self) -> None:
         self.assertIsNone(_event_message(EnrichedAccessEvent(EVENT, None))["data"]["resident"])

@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Integer, LargeBinary, String
+from sqlalchemy import Boolean, DateTime, Integer, LargeBinary, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database.database import Base
@@ -21,7 +21,11 @@ class DeviceRecord(Base):
 
 
 class ResidentRecord(Base):
-    """Person synced from a device, keyed by the identifier shared with Sigma.
+    """One enrollment, as a single device knows it.
+
+    Identifiers are only unique inside the device that issued them: the same number
+    names different people on devices enrolled separately, so an enrollment is keyed
+    by device and identifier together.
 
     ``name`` and ``photo`` are owned by the device and overwritten on every sync,
     while ``apartment`` and ``block`` are maintained inside Monikraft until Sigma
@@ -29,13 +33,14 @@ class ResidentRecord(Base):
     """
 
     __tablename__ = "residents"
+    __table_args__ = (UniqueConstraint("device_id", "employee_no", name="uq_residents_device_employee"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    employee_no: Mapped[str] = mapped_column(String(64), nullable=False, unique=True, index=True)
+    device_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    employee_no: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(128), nullable=False)
     apartment: Mapped[str | None] = mapped_column(String(32))
     block: Mapped[str | None] = mapped_column(String(32))
     photo: Mapped[bytes | None] = mapped_column(LargeBinary)
     photo_reference: Mapped[str | None] = mapped_column(String(256))
-    source_device_id: Mapped[int | None] = mapped_column(Integer)
     synced_at: Mapped[datetime | None] = mapped_column(DateTime)

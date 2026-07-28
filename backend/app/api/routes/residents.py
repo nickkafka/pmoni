@@ -25,24 +25,24 @@ def list_residents(
     return repository.list_all()
 
 
-@router.get("/{employee_no}/photo")
+@router.get("/{resident_id}/photo")
 def read_resident_photo(
-    employee_no: str, repository: SqlAlchemyResidentRepository = Depends(get_repository)
+    resident_id: int, repository: SqlAlchemyResidentRepository = Depends(get_repository)
 ) -> Response:
-    photo = repository.get_photo(employee_no)
+    photo = repository.get_photo(resident_id)
     if photo is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Foto não sincronizada.")
     return Response(content=photo, media_type="image/jpeg")
 
 
-@router.patch("/{employee_no}", response_model=ResidentRead)
+@router.patch("/{resident_id}", response_model=ResidentRead)
 def update_resident_location(
-    employee_no: str,
+    resident_id: int,
     payload: ResidentLocationUpdate,
     repository: SqlAlchemyResidentRepository = Depends(get_repository),
 ) -> Resident:
     resident = repository.set_location(
-        employee_no, apartment=payload.apartment, block=payload.block
+        resident_id, apartment=payload.apartment, block=payload.block
     )
     if resident is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Morador não encontrado.")
