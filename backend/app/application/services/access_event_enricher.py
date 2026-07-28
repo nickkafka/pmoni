@@ -69,10 +69,10 @@ class AccessEventEnricher:
         try:
             resident = self._resident_lookup.find(event.employee_no)
         except Exception:
-            logger.exception("Falha ao identificar a matrícula {}.", event.employee_no)
+            logger.exception("Falha ao identificar o ID {}.", event.employee_no)
             return None
         if resident is None:
-            logger.warning("Matrícula {} não está no cadastro local.", event.employee_no)
+            logger.warning("ID {} não está no cadastro local.", event.employee_no)
         return resident
 
     def _device_of(self, event: AccessEvent) -> DeviceSummary | None:

@@ -5,6 +5,7 @@ from typing import Any
 
 from app.domain.entities.access_event import AccessEvent
 from app.hikvision.client import HikvisionClient
+from app.infrastructure.snapshot_store import InMemorySnapshotStore
 
 DEVICE_TZ = timezone(timedelta(hours=-3))
 
@@ -34,6 +35,9 @@ class FakeIsapiSession:
         self.entries = entries
         self.is_open = False
         self.conditions: list[dict[str, Any]] = []
+        self.downloads: list[str] = []
+        self.unreachable: set[str] = set()
+        self.empty: set[str] = set()
 
     async def open(self) -> None:
         self.is_open = True
@@ -43,6 +47,12 @@ class FakeIsapiSession:
 
     async def get_text(self, path: str) -> str:
         return "<Time><localTime>2026-07-27T14:27:03-03:00</localTime></Time>"
+
+    async def get_bytes(self, path: str) -> bytes:
+        self.downloads.append(path)
+        if path in self.unreachable:
+            raise ConnectionError("captura indisponível")
+        return b"" if path in self.empty else b"jpeg:" + path.encode()
 
     async def post_json(self, path: str, payload: dict[str, Any]) -> dict[str, Any]:
         condition = payload["AcsEventCond"]
@@ -90,11 +100,60 @@ async def collect(client: HikvisionClient, count: int, timeout: float = 2.0) -> 
 
 
 class HikvisionClientTests(unittest.IsolatedAsyncioTestCase):
-    def build(self, session: FakeIsapiSession) -> HikvisionClient:
+    def build(
+        self, session: FakeIsapiSession, store: InMemorySnapshotStore | None = None
+    ) -> HikvisionClient:
         return HikvisionClient(
             device_id=3, host="device", port=80, username="admin", password="secret",
-            poll_interval_seconds=0.01, session=session,
+            poll_interval_seconds=0.01, session=session, snapshot_store=store,
         )
+
+    async def test_keeps_the_capture_taken_when_the_person_passed(self) -> None:
+        session = FakeIsapiSession([journal_entry(1)])
+        store = InMemorySnapshotStore()
+        client = self.build(session, store)
+        await client.connect()
+
+        session.entries.append(journal_entry(2, pictureURL="http://10.0.0.5/pic/2.jpg@WEB01"))
+        events = await collect(client, 1)
+
+        self.assertEqual(store.get(3, "2"), b"jpeg:/pic/2.jpg")
+        self.assertIsNotNone(events[0].snapshot)
+        self.assertEqual(session.downloads, ["/pic/2.jpg"])
+
+    async def test_reports_no_capture_when_the_download_fails(self) -> None:
+        session = FakeIsapiSession([journal_entry(1)])
+        session.unreachable.add("/pic/2.jpg")
+        store = InMemorySnapshotStore()
+        client = self.build(session, store)
+        await client.connect()
+
+        session.entries.append(journal_entry(2, pictureURL="http://10.0.0.5/pic/2.jpg@WEB01"))
+        events = await collect(client, 1)
+
+        self.assertIsNone(events[0].snapshot)
+        self.assertIsNone(store.get(3, "2"))
+
+    async def test_reports_no_capture_when_the_device_returns_nothing(self) -> None:
+        session = FakeIsapiSession([journal_entry(1)])
+        session.empty.add("/pic/2.jpg")
+        client = self.build(session, InMemorySnapshotStore())
+        await client.connect()
+
+        session.entries.append(journal_entry(2, pictureURL="http://10.0.0.5/pic/2.jpg@WEB01"))
+        events = await collect(client, 1)
+
+        self.assertIsNone(events[0].snapshot)
+
+    async def test_does_not_download_when_the_event_has_no_capture(self) -> None:
+        session = FakeIsapiSession([journal_entry(1)])
+        client = self.build(session, InMemorySnapshotStore())
+        await client.connect()
+
+        session.entries.append(journal_entry(2))
+        await collect(client, 1)
+
+        self.assertEqual(session.downloads, [])
 
     async def test_connect_baselines_cursor_on_the_newest_entry(self) -> None:
         session = FakeIsapiSession([journal_entry(serial) for serial in (10, 11, 12)])

@@ -19,7 +19,8 @@ export type AccessEventMessage = {
   access_type: string
   success: boolean
   event_time: string
-  snapshot: string | null
+  /** Capture taken at the passage, served by the backend when the device took one. */
+  snapshot_url: string | null
   resident: ResidentMessage | null
   device: DeviceMessage | null
 }

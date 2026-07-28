@@ -3,6 +3,7 @@ from typing import Any
 
 from app.domain.entities.access_event import AccessEvent
 from app.hikvision.exceptions import HikvisionEventParseError
+from app.hikvision.urls import isapi_path
 
 ACCESS_GRANTED_MINOR_CODES = frozenset({75})
 """Journal codes observed to identify a person and report the credential as accepted.
@@ -30,8 +31,14 @@ class AcsEventParser:
             access_type=str(entry.get("currentVerifyMode") or "unknown"),
             success=entry.get("minor") in ACCESS_GRANTED_MINOR_CODES,
             event_time=self._event_time(entry),
-            snapshot=entry.get("pictureURL") or None,
+            snapshot=self._snapshot_path(entry),
         )
+
+    @staticmethod
+    def _snapshot_path(entry: dict[str, Any]) -> str | None:
+        """Keep the device path; the published URL only survives on the device itself."""
+        picture = entry.get("pictureURL")
+        return isapi_path(str(picture)) if picture else None
 
     @staticmethod
     def _event_time(entry: dict[str, Any]) -> datetime:

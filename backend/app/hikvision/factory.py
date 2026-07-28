@@ -3,6 +3,7 @@ from app.application.ports.device_client_factory import DeviceClientFactory
 from app.application.ports.device_credentials_store import DeviceCredentialsStore
 from app.application.ports.person_directory import PersonDirectory
 from app.application.ports.person_directory_factory import PersonDirectoryFactory
+from app.application.ports.snapshot_store import SnapshotStore
 from app.core.config import settings
 from app.domain.entities.device import Device
 from app.hikvision.client import HikvisionClient
@@ -29,8 +30,12 @@ class _HikvisionCredentials:
 
 
 class HikvisionClientFactory(DeviceClientFactory):
-    def __init__(self, credentials_store: DeviceCredentialsStore, cipher: FernetCredentialCipher) -> None:
+    def __init__(
+        self, credentials_store: DeviceCredentialsStore, cipher: FernetCredentialCipher,
+        snapshot_store: SnapshotStore | None = None,
+    ) -> None:
         self._credentials = _HikvisionCredentials(credentials_store, cipher)
+        self._snapshot_store = snapshot_store
 
     def create(self, device: Device) -> DeviceClient:
         device_id, password = self._credentials.resolve(device)
@@ -38,6 +43,7 @@ class HikvisionClientFactory(DeviceClientFactory):
             device_id=device_id, host=device.host, port=device.port,
             username=device.username, password=password,
             poll_interval_seconds=settings.DEVICE_POLL_INTERVAL_SECONDS,
+            snapshot_store=self._snapshot_store,
         )
 
 

@@ -11,6 +11,7 @@ export default defineConfig({
       '/ws': { target: backend.replace(/^http/, 'ws'), ws: true },
       '/residents': backend,
       '/devices': backend,
+      '/access-events': backend,
     },
   },
 })

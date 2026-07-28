@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from app.api.routes.system import router as system_router
 from app.api.routes.devices import router as devices_router
 from app.api.routes.residents import router as residents_router
+from app.api.routes.snapshots import router as snapshots_router
 from app.core.config import settings
 from app.core.logger import logger
 from app.database.init_db import init_database
@@ -35,6 +36,7 @@ app = FastAPI(
 app.include_router(system_router)
 app.include_router(devices_router)
 app.include_router(residents_router)
+app.include_router(snapshots_router)
 app.include_router(access_events_router)
 
 

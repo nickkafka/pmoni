@@ -111,6 +111,36 @@
   }
 }
 
+.current__photos {
+  display: flex;
+  gap: clamp(10px, 1.4vw, 20px);
+}
+
+.shot {
+  margin: 0;
+  display: grid;
+  gap: 6px;
+  justify-items: center;
+}
+
+.shot__caption {
+  font-size: clamp(11px, 1vw, 15px);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--ink-soft);
+}
+
+/* Two portraits share the space the single one had. */
+.current__photos--paired .photo--large {
+  width: clamp(128px, 17vw, 250px);
+}
+
+/* The capture is a wide-angle frame with the person wherever the camera caught
+   them — often near an edge — so it is shown whole instead of cropped to fit. */
+.photo--capture {
+  object-fit: contain;
+}
+
 .photo {
   object-fit: cover;
   border-radius: 16px;

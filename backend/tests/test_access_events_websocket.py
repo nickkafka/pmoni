@@ -30,6 +30,19 @@ class AccessEventWebSocketTests(unittest.TestCase):
     def test_reports_an_unknown_person_as_a_null_resident(self) -> None:
         self.assertIsNone(_event_message(EnrichedAccessEvent(EVENT, None))["data"]["resident"])
 
+    def test_points_the_capture_at_the_copy_the_backend_kept(self) -> None:
+        event = AccessEvent(
+            "261143", 2, "42", "face", True, datetime(2026, 7, 28, tzinfo=UTC),
+            snapshot="/LOCALS/pic/acsLinkCap/28_091059.jpeg",
+        )
+
+        message = _event_message(EnrichedAccessEvent(event, None))["data"]
+
+        self.assertEqual(message["snapshot_url"], "/access-events/2/261143/snapshot")
+
+    def test_omits_the_capture_when_the_device_did_not_take_one(self) -> None:
+        self.assertIsNone(_event_message(EnrichedAccessEvent(EVENT, None))["data"]["snapshot_url"])
+
     def test_names_the_device_the_person_walked_through(self) -> None:
         enriched = EnrichedAccessEvent(EVENT, None, DeviceSummary(5, "Portaria social"))
 

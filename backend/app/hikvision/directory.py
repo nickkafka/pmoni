@@ -1,12 +1,12 @@
 from collections.abc import AsyncIterator
 from typing import Any
-from urllib.parse import urlsplit
 
 from app.application.ports.person_directory import PersonDirectory
 from app.core.logger import logger
 from app.domain.entities.resident import EnrolledPerson
 from app.hikvision.exceptions import HikvisionProtocolError
 from app.hikvision.session import IsapiSession
+from app.hikvision.urls import isapi_path
 
 
 class HikvisionPersonDirectory(PersonDirectory):
@@ -83,14 +83,9 @@ class HikvisionPersonDirectory(PersonDirectory):
             for match in page:
                 employee_no, face_url = str(match.get("FPID") or ""), match.get("faceURL")
                 if employee_no and face_url:
-                    references[employee_no] = self._photo_path(str(face_url))
+                    references[employee_no] = isapi_path(str(face_url))
             position += len(page)
         return references
-
-    @staticmethod
-    def _photo_path(face_url: str) -> str:
-        """Drop the host and the per-request token so the reference stays comparable."""
-        return urlsplit(face_url.split("@", 1)[0]).path
 
     @staticmethod
     def _unwrap(payload: dict[str, Any], key: str) -> dict[str, Any]:

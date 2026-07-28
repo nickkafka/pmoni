@@ -1,10 +1,11 @@
 import asyncio
 from contextlib import suppress
+from urllib.parse import quote
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from app.application.services.access_event_enricher import AccessEventEnricher
-from app.domain.entities.access_event import DeviceSummary, EnrichedAccessEvent
+from app.domain.entities.access_event import AccessEvent, DeviceSummary, EnrichedAccessEvent
 from app.domain.entities.resident import ResidentSummary
 
 router = APIRouter()
@@ -55,7 +56,7 @@ def _event_message(enriched: EnrichedAccessEvent) -> dict:
             "access_type": event.access_type,
             "success": event.success,
             "event_time": event.event_time.isoformat(),
-            "snapshot": event.snapshot,
+            "snapshot_url": _snapshot_url(event),
             "resident": _resident_message(enriched.resident),
             "device": _device_message(enriched.device),
         },
@@ -64,6 +65,13 @@ def _event_message(enriched: EnrichedAccessEvent) -> dict:
 
 def _device_message(device: DeviceSummary | None) -> dict | None:
     return None if device is None else {"id": device.id, "name": device.name}
+
+
+def _snapshot_url(event: AccessEvent) -> str | None:
+    """Point at the copy the backend kept; the device path is unreachable from a browser."""
+    if event.snapshot is None:
+        return None
+    return f"/access-events/{event.device_id}/{quote(event.external_id)}/snapshot"
 
 
 def _resident_message(resident: ResidentSummary | None) -> dict | None:

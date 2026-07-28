@@ -10,6 +10,7 @@ from app.infrastructure.persistence.device_lookup import SessionScopedDeviceLook
 from app.infrastructure.persistence.device_repository import SqlAlchemyDeviceRepository
 from app.infrastructure.persistence.resident_lookup import SessionScopedResidentLookup
 from app.infrastructure.security import FernetCredentialCipher
+from app.infrastructure.snapshot_store import InMemorySnapshotStore
 
 
 class ApplicationRuntime:
@@ -19,17 +20,22 @@ class ApplicationRuntime:
         self._session = None
         self.device_manager: DeviceManager | None = None
         self.access_events: AccessEventEnricher | None = None
+        self.snapshots: InMemorySnapshotStore | None = None
 
     async def start(self, app: FastAPI) -> None:
         if not settings.DEVICE_CREDENTIALS_KEY:
             logger.warning("Monitoramento de dispositivos desabilitado: DEVICE_CREDENTIALS_KEY não configurada.")
             app.state.device_manager = None
             app.state.access_events = None
+            app.state.snapshots = None
             return
         self._session = SessionLocal()
         repository = SqlAlchemyDeviceRepository(self._session)
         cipher = FernetCredentialCipher(settings.DEVICE_CREDENTIALS_KEY)
-        self.device_manager = DeviceManager(repository, HikvisionClientFactory(repository, cipher))
+        self.snapshots = InMemorySnapshotStore()
+        self.device_manager = DeviceManager(
+            repository, HikvisionClientFactory(repository, cipher, self.snapshots)
+        )
         await self.device_manager.start()
         self.access_events = AccessEventEnricher(
             self.device_manager,
@@ -39,6 +45,7 @@ class ApplicationRuntime:
         await self.access_events.start()
         app.state.device_manager = self.device_manager
         app.state.access_events = self.access_events
+        app.state.snapshots = self.snapshots
 
     async def stop(self) -> None:
         if self.access_events is not None:

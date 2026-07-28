@@ -53,19 +53,42 @@ function Photo({ event, size }: { event: AccessEventMessage; size: 'large' | 'sm
   )
 }
 
+function Capture({ url }: { url: string }) {
+  const [failed, setFailed] = useState(false)
+  useEffect(() => setFailed(false), [url])
+  if (failed) return null
+  return (
+    <figure className="shot">
+      <img
+        className="photo photo--large photo--capture"
+        src={url}
+        alt="Imagem capturada na passagem"
+        onError={() => setFailed(true)}
+      />
+      <figcaption className="shot__caption">Agora</figcaption>
+    </figure>
+  )
+}
+
 function CurrentEvent({ event }: { event: AccessEventMessage }) {
   const resident = event.resident
   const location = locationOf(event)
   return (
     <section className={`current current--${event.success ? 'granted' : 'denied'}`}>
-      <Photo event={event} size="large" />
+      <div className={`current__photos${event.snapshot_url ? ' current__photos--paired' : ''}`}>
+        <figure className="shot">
+          <Photo event={event} size="large" />
+          <figcaption className="shot__caption">Cadastro</figcaption>
+        </figure>
+        {event.snapshot_url && <Capture url={event.snapshot_url} />}
+      </div>
       <div className="current__details">
         <h1 className="current__name">{resident?.name ?? 'Não cadastrado'}</h1>
         {location ? (
           <p className="current__location">{location}</p>
         ) : (
           <p className="current__location current__location--missing">
-            {resident ? 'Apartamento não cadastrado' : `Matrícula ${event.employee_no ?? '—'}`}
+            {resident ? 'Apartamento não cadastrado' : `ID ${event.employee_no ?? '—'}`}
           </p>
         )}
         <p className="current__badges">
@@ -76,7 +99,7 @@ function CurrentEvent({ event }: { event: AccessEventMessage }) {
         </p>
         <p className="current__meta">
           {timeOf(event)}
-          {resident ? ` · matrícula ${resident.employee_no}` : ''}
+          {resident ? ` · ID ${resident.employee_no}` : ''}
         </p>
       </div>
     </section>

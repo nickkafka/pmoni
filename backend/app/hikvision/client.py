@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, tzinfo
 from typing import Any
 
 from app.application.ports.device_client import DeviceClient
+from app.application.ports.snapshot_store import SnapshotStore
 from app.core.logger import logger
 from app.domain.entities.access_event import AccessEvent
 from app.hikvision.acs_event import AcsEventParser
@@ -42,12 +43,14 @@ class HikvisionClient(DeviceClient):
         self, *, device_id: int, host: str, port: int, username: str, password: str,
         scheme: str = "http", timeout_seconds: float = 30.0, poll_interval_seconds: float = 1.0,
         parser: AcsEventParser | None = None, session: IsapiSession | None = None,
+        snapshot_store: SnapshotStore | None = None,
     ) -> None:
         if poll_interval_seconds <= 0:
             raise ValueError("O intervalo de consulta deve ser maior que zero.")
         self._device_id = device_id
         self._poll_interval_seconds = poll_interval_seconds
         self._parser = parser or AcsEventParser()
+        self._snapshot_store = snapshot_store
         self._session = session or IsapiSession(
             base_url=f"{scheme}://{host}:{port}", username=username, password=password,
             timeout_seconds=timeout_seconds,
@@ -112,6 +115,7 @@ class HikvisionClient(DeviceClient):
                 newest_seen = self._entry_time(entry) or newest_seen
                 event = self._parse(entry)
                 if event is not None:
+                    await self._keep_snapshot(event)
                     events.append(event)
             position += len(entries)
             if page.get("responseStatusStrg") != "MORE":
@@ -120,6 +124,29 @@ class HikvisionClient(DeviceClient):
         # span and returned everything in it, so the window may close behind us.
         self._window_start = newest_seen or polled_at
         return events
+
+    async def _keep_snapshot(self, event: AccessEvent) -> None:
+        """Download the capture now, while the device still serves it.
+
+        The published URL names an address only the device itself can be reached by,
+        so the image is fetched through this session and kept for the interface.
+        ``snapshot`` is cleared when that fails, since nothing would be there to show.
+        """
+        if self._snapshot_store is None or event.snapshot is None:
+            return
+        try:
+            image = await self._session.get_bytes(event.snapshot)
+        except Exception:
+            logger.warning(
+                "Não foi possível obter a captura do evento {} no dispositivo {}.",
+                event.external_id, self._device_id,
+            )
+            event.snapshot = None
+            return
+        if image:
+            self._snapshot_store.put(self._device_id, event.external_id, image)
+        else:
+            event.snapshot = None
 
     def _parse(self, entry: dict[str, Any]) -> AccessEvent | None:
         """Drop a malformed entry instead of interrupting the journal."""

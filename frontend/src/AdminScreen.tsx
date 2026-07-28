@@ -403,7 +403,7 @@ export default function AdminScreen() {
         <div className="filters">
           <input
             className="field field--search"
-            placeholder="Buscar por nome ou matrícula"
+            placeholder="Buscar por nome ou ID"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
           />
@@ -427,7 +427,7 @@ export default function AdminScreen() {
                 <tr>
                   <th />
                   <th>Nome</th>
-                  <th>Matrícula</th>
+                  <th>ID</th>
                   <th>Apartamento</th>
                   <th>Bloco</th>
                   <th />
