@@ -10,7 +10,12 @@ from app.hikvision.factory import HikvisionPersonDirectoryFactory
 from app.infrastructure.persistence.device_repository import SqlAlchemyDeviceRepository
 from app.infrastructure.persistence.resident_repository import SqlAlchemyResidentRepository
 from app.infrastructure.security import CredentialProtectionUnavailable, FernetCredentialCipher
-from app.schemas.resident import ResidentLocationUpdate, ResidentRead, ResidentSyncRead
+from app.schemas.resident import (
+    ResidentLocationUpdate,
+    ResidentPurgeRead,
+    ResidentRead,
+    ResidentSyncRead,
+)
 
 router = APIRouter(prefix="/residents", tags=["residents"])
 
@@ -49,6 +54,18 @@ def update_resident_location(
     if resident is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Morador não encontrado.")
     return resident
+
+
+@router.delete("", response_model=ResidentPurgeRead, dependencies=[Depends(require_admin)])
+def purge_residents(
+    repository: SqlAlchemyResidentRepository = Depends(get_repository),
+) -> ResidentPurgeRead:
+    """Empty the resident directory.
+
+    Only the local copy is touched: the people remain enrolled on the equipment,
+    and synchronising brings them back — the apartments typed here do not.
+    """
+    return ResidentPurgeRead(removed=repository.drop_all())
 
 
 @router.post("/sync/{device_id}", response_model=ResidentSyncRead, dependencies=[Depends(require_admin)])

@@ -67,6 +67,11 @@ class SqlAlchemyResidentRepository(ResidentRepository):
         self._session.commit()
         return len(stale)
 
+    def drop_all(self) -> int:
+        removed = self._session.query(ResidentRecord).delete()
+        self._session.commit()
+        return removed
+
     def _find(self, device_id: int, employee_no: str) -> ResidentRecord | None:
         return self._session.scalar(
             select(ResidentRecord).where(

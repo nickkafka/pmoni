@@ -39,3 +39,8 @@ class ResidentRepository(ABC):
     def drop_missing(self, device_id: int, keep: set[str]) -> int:
         """Delete this device's enrollments whose identifiers it no longer reports."""
         raise NotImplementedError
+
+    @abstractmethod
+    def drop_all(self) -> int:
+        """Empty the directory. Synchronising the devices again rebuilds it."""
+        raise NotImplementedError

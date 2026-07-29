@@ -493,6 +493,22 @@ export default function AdminScreen() {
     })
   }, [people, search, onlyPending])
 
+  const purge = async () => {
+    const confirmado = window.confirm(
+      `Apagar os ${residents.length} cadastros de moradores e suas fotos?\n\n` +
+        'Os apartamentos informados aqui serão perdidos. As pessoas continuam ' +
+        'cadastradas nas faciais, e sincronizar traz nome e foto de volta.',
+    )
+    if (!confirmado) return
+    setError(null)
+    try {
+      await remove('/residents')
+      setResidents([])
+    } catch (failure) {
+      setError((failure as Error).message)
+    }
+  }
+
   const replace = (saved: Resident[]) =>
     setResidents((current) =>
       current.map((resident) => saved.find((item) => item.id === resident.id) ?? resident),
@@ -520,6 +536,14 @@ export default function AdminScreen() {
             {people.length} pessoas · {residents.length} cadastros nas faciais ·{' '}
             {pending} sem apartamento
           </span>
+          <button
+            type="button"
+            className="button button--danger panel__action"
+            onClick={purge}
+            disabled={residents.length === 0}
+          >
+            Limpar cadastros
+          </button>
         </h2>
 
         <div className="filters">

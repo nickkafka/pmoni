@@ -49,6 +49,7 @@ class AdminGuardTests(unittest.TestCase):
             ("DELETE", "/devices/1"),
             ("GET", "/residents"),
             ("PATCH", "/residents/1"),
+            ("DELETE", "/residents"),
             ("POST", "/residents/sync/1"),
         ):
             with self.subTest(route=f"{method} {path}"):

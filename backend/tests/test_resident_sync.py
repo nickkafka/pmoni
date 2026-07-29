@@ -72,6 +72,11 @@ class FakeRepository(ResidentRepository):
     def set_location(self, resident_id, *, apartment, block):
         raise NotImplementedError
 
+    def drop_all(self) -> int:
+        removidos = len(self.rows)
+        self.rows.clear()
+        return removidos
+
     def drop_missing(self, device_id: int, keep: set[str]) -> int:
         stale = [k for k in self.rows if k[0] == device_id and k[1] not in keep]
         for key in stale:

@@ -23,6 +23,10 @@ class ResidentLocationUpdate(BaseModel):
     block: str | None = Field(default=None, max_length=32)
 
 
+class ResidentPurgeRead(BaseModel):
+    removed: int
+
+
 class ResidentSyncRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
