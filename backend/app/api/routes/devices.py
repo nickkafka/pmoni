@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy.orm import Session
 
+from app.api.dependencies import require_admin
 from app.application.services.device_manager import DeviceManager
 from app.application.services.device_service import DeviceService
 from app.core.config import settings
@@ -10,7 +11,8 @@ from app.infrastructure.persistence.device_repository import SqlAlchemyDeviceRep
 from app.infrastructure.security import CredentialProtectionUnavailable, FernetCredentialCipher
 from app.schemas.device import DeviceCreate, DeviceRead, DeviceUpdate
 
-router = APIRouter(prefix="/devices", tags=["devices"])
+# Todo o cadastro de equipamentos é administrativo.
+router = APIRouter(prefix="/devices", tags=["devices"], dependencies=[Depends(require_admin)])
 
 
 def get_repository(session: Session = Depends(get_session)) -> SqlAlchemyDeviceRepository:

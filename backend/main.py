@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from app.api.routes.auth import router as auth_router
 from app.api.routes.system import router as system_router
 from app.api.routes.devices import router as devices_router
 from app.api.routes.residents import router as residents_router
@@ -34,6 +35,7 @@ app = FastAPI(
 )
 
 app.include_router(system_router)
+app.include_router(auth_router)
 app.include_router(devices_router)
 app.include_router(residents_router)
 app.include_router(snapshots_router)

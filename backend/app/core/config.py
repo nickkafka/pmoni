@@ -20,6 +20,12 @@ class Settings(BaseSettings):
     # the point where the queries themselves become the limit.
     DEVICE_POLL_INTERVAL_SECONDS: float = 1.0
 
+    # Acesso à administração. As rotas de portaria seguem abertas: a tela da
+    # guarita precisa subir sozinha, sem ninguém para digitar uma senha.
+    ADMIN_USERNAME: str = "prever"
+    ADMIN_PASSWORD: str = "prever"
+    ADMIN_SESSION_MINUTES: int = 30
+
     LOG_LEVEL: str = "INFO"
 
     @field_validator("DATABASE_URL")

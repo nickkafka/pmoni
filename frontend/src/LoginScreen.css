@@ -1,0 +1,90 @@
+/* Login da administração, sobre Prever — Dark Gold. */
+
+.login {
+  min-height: 100svh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+.login__card {
+  width: min(420px, 100%);
+  box-sizing: border-box;
+  display: grid;
+  gap: 14px;
+  padding: 28px 26px;
+  border-radius: var(--radius-card);
+  border: 1px solid var(--card-border);
+  background: var(--card-gradient);
+  box-shadow: var(--overlay-shadow);
+}
+
+.login__heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.login__brand {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--gold-primary);
+  margin-inline-end: auto;
+}
+
+.login__label {
+  margin: 6px 0 0;
+}
+
+.login__hint {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 300;
+  color: var(--text-secondary);
+}
+
+.login__field {
+  display: grid;
+  gap: 7px;
+}
+
+.login__field .field {
+  width: 100%;
+  height: 52px;
+}
+
+.login__error {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 13px;
+  color: var(--status-danger);
+  background: var(--status-danger-bg);
+  border: 1px solid var(--status-danger-border);
+}
+
+/* CTA em pílula, conforme §6.3. */
+.login__submit {
+  height: 56px;
+  border-radius: 28px;
+  font-size: 13px;
+  letter-spacing: 0.16em;
+  margin-top: 4px;
+}
+
+.login__back {
+  justify-self: center;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  text-decoration: none;
+}
+
+.login__back:hover {
+  color: var(--gold-primary);
+}

@@ -38,6 +38,23 @@ npm run dev
 A interface abre em `http://localhost:5173` e alcança a API pelo proxy do Vite. Se a
 API estiver em outro endereço, informe `MONIKRAFT_API` antes de iniciar.
 
+## Acesso à administração
+
+A tela da portaria é aberta: a guarita precisa subir sozinha, sem ninguém para
+digitar uma senha. Já a administração exige login, e as rotas administrativas da
+API recusam quem não fez login — bloquear apenas a tela não protegeria nada.
+
+O padrão é `prever` / `prever`. Para trocar, defina no `.env` do backend:
+
+```
+ADMIN_USERNAME=...
+ADMIN_PASSWORD=...
+ADMIN_SESSION_MINUTES=30
+```
+
+A sessão vive apenas na memória: reiniciar a aplicação, ou recarregar a página,
+pede a senha de novo.
+
 ## Primeiro uso
 
 1. Cadastre o equipamento em `POST /devices` (aceita endereço IP ou nome DDNS).

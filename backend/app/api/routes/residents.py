@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 
+from app.api.dependencies import require_admin
 from app.application.services.resident_sync import ResidentSyncService
 from app.core.config import settings
 from app.database.database import get_session
@@ -18,13 +19,14 @@ def get_repository(session: Session = Depends(get_session)) -> SqlAlchemyResiden
     return SqlAlchemyResidentRepository(session)
 
 
-@router.get("", response_model=list[ResidentRead])
+@router.get("", response_model=list[ResidentRead], dependencies=[Depends(require_admin)])
 def list_residents(
     repository: SqlAlchemyResidentRepository = Depends(get_repository),
 ) -> list[Resident]:
     return repository.list_all()
 
 
+# Sem sessão de propósito: a tela da portaria mostra esta foto e sobe sozinha.
 @router.get("/{resident_id}/photo")
 def read_resident_photo(
     resident_id: int, repository: SqlAlchemyResidentRepository = Depends(get_repository)
@@ -35,7 +37,7 @@ def read_resident_photo(
     return Response(content=photo, media_type="image/jpeg")
 
 
-@router.patch("/{resident_id}", response_model=ResidentRead)
+@router.patch("/{resident_id}", response_model=ResidentRead, dependencies=[Depends(require_admin)])
 def update_resident_location(
     resident_id: int,
     payload: ResidentLocationUpdate,
@@ -49,7 +51,7 @@ def update_resident_location(
     return resident
 
 
-@router.post("/sync/{device_id}", response_model=ResidentSyncRead)
+@router.post("/sync/{device_id}", response_model=ResidentSyncRead, dependencies=[Depends(require_admin)])
 async def sync_residents(
     device_id: int,
     refresh_photos: bool = False,

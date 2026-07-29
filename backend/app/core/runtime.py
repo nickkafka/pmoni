@@ -1,8 +1,11 @@
+from datetime import timedelta
+
 from fastapi import FastAPI
 
 from app.application.services.access_event_enricher import AccessEventEnricher
+from app.application.services.admin_sessions import AdminSessions
 from app.application.services.device_manager import DeviceManager
-from app.core.config import settings
+from app.core.config import Settings, settings
 from app.core.logger import logger
 from app.database.database import SessionLocal
 from app.hikvision.factory import HikvisionClientFactory
@@ -23,6 +26,7 @@ class ApplicationRuntime:
         self.snapshots: InMemorySnapshotStore | None = None
 
     async def start(self, app: FastAPI) -> None:
+        app.state.admin_sessions = self._build_admin_sessions()
         if not settings.DEVICE_CREDENTIALS_KEY:
             logger.warning("Monitoramento de dispositivos desabilitado: DEVICE_CREDENTIALS_KEY não configurada.")
             app.state.device_manager = None
@@ -46,6 +50,19 @@ class ApplicationRuntime:
         app.state.device_manager = self.device_manager
         app.state.access_events = self.access_events
         app.state.snapshots = self.snapshots
+
+    @staticmethod
+    def _build_admin_sessions() -> AdminSessions:
+        if settings.ADMIN_PASSWORD == Settings.model_fields["ADMIN_PASSWORD"].default:
+            logger.warning(
+                "A administração está com a senha padrão. Defina ADMIN_PASSWORD antes "
+                "de expor o Monikraft fora da rede local."
+            )
+        return AdminSessions(
+            username=settings.ADMIN_USERNAME,
+            password=settings.ADMIN_PASSWORD,
+            lifetime=timedelta(minutes=settings.ADMIN_SESSION_MINUTES),
+        )
 
     async def stop(self) -> None:
         if self.access_events is not None:
