@@ -5,6 +5,9 @@ export function ThemeToggle() {
   const { isLight, toggleTheme } = useTheme()
   return (
     <button
+      // Sem isto o botão vira submit dentro de um formulário, e o Enter em um
+      // campo aciona a troca de tema em vez de enviar.
+      type="button"
       className="icon-button"
       onClick={toggleTheme}
       title={isLight ? 'Usar tema escuro' : 'Usar tema claro'}
