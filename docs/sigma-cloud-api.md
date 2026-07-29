@@ -64,6 +64,42 @@ com o bloco resolvido.
 A segunda serve bem para o operador escolher a conta em uma lista na interface, em
 vez de digitar um número.
 
+## O que foi verificado com o token real (2026-07-29)
+
+O token de integração do Grupo Prever foi testado, somente com `GET`. Ele é válido
+e a conta foi localizada, mas **nenhuma rota que devolve pessoas ou unidades é
+autorizada**.
+
+Primeiro achado: `583775` é o **`id`** da conta, não o `accountCode` — o código dela
+é `1950`. E `GET /v1/accounts?searchParams=...` ignora o filtro, devolvendo as 252
+contas da empresa; é preciso filtrar do lado de cá.
+
+| Rota | Resultado |
+| --- | --- |
+| `GET /v1/accounts` | 200 — 252 contas |
+| `GET /v1/accounts/583775` | 200 — endereço, contrato, responsável |
+| `GET /v1/accounts/583775/scond/configs/dwellers` | 200 — configuração, sem dados |
+| `GET /v1/accounts/583775/pgms` e `/partitions` | 200 |
+| `GET /v1/accounts/{id}/dwellers` (v1, v2, v3, v5) | **403** |
+| `GET /v4/accounts/{id}/dwellers` | **403** com os parâmetros completos |
+| `GET /v1/accounts/{id}/dwellers/search` | **403** |
+| `GET /v1/accounts/{id}/employees` | **403** |
+| Todas as rotas de `api-access-control.segware.com.br` | **403** |
+
+A v4 chega a responder 400 sem os parâmetros obrigatórios, o que faz parecer que ela
+funcionaria — mas é apenas a validação acontecendo antes da checagem de permissão:
+com `groupsAndUnits`, `types` e `globalAccessGroupId` preenchidos, ela também
+responde 403.
+
+O 403 se repete em todas as contas testadas, e não só na 583775, enquanto os demais
+dados da mesma conta leem sem problema. Ou seja, é uma permissão faltando no usuário
+de integração, não algo específico daquela conta nem do token estar vencido.
+
+**Falta pedir à Segware** que esse usuário de integração possa ler moradores e
+unidades. Vale citar as rotas exatas: `GET /v1/accounts/{accountId}/dwellers` na API
+principal e `GET /v1/accessControl/accounts/{accountId}/people`, `/units` e `/blocks`
+na API de controle de acesso.
+
 ## A questão em aberto que decide a viabilidade
 
 **Qual campo do Sigma corresponde ao ID que a facial informa no evento?**
