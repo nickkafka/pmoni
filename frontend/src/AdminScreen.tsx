@@ -203,10 +203,17 @@ function ResidentRow({
 
 const EMPTY_DEVICE = { name: '', host: '', port: '80', username: '', password: '', model: '' }
 
-function formOf(device: Device | null) {
+/**
+ * What the form is doing. A device with `editing` false is being copied: the
+ * fields start filled but a new equipment is registered on save.
+ */
+type FormTarget = { device: Device | null; editing: boolean }
+
+function formOf({ device, editing }: FormTarget) {
   if (device === null) return EMPTY_DEVICE
   return {
-    name: device.name,
+    // A copy that kept the name would be indistinguishable in the list.
+    name: editing ? device.name : `${device.name} (cópia)`,
     host: device.host,
     port: String(device.port),
     username: device.username,
@@ -216,18 +223,19 @@ function formOf(device: Device | null) {
 }
 
 function DeviceForm({
-  device,
+  target,
   onSaved,
   onCancel,
 }: {
-  device: Device | null
+  target: FormTarget
   onSaved: (device: Device) => void
   onCancel: () => void
 }) {
-  const [form, setForm] = useState(() => formOf(device))
+  const [form, setForm] = useState(() => formOf(target))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const editing = device !== null
+  const { device, editing } = target
+  const copying = device !== null && !editing
 
   const update = (field: keyof typeof EMPTY_DEVICE) => (event: ChangeEvent<HTMLInputElement>) =>
     setForm((current) => ({ ...current, [field]: event.target.value }))
@@ -243,12 +251,13 @@ function DeviceForm({
       username: form.username.trim(),
       password: form.password || null,
       model: form.model.trim() || null,
-      ...(editing ? { enabled: device.enabled } : {}),
+      ...(editing && device ? { enabled: device.enabled } : {}),
     }
     try {
-      const saved = editing
-        ? await sendJson<Device>(`/devices/${device.id}`, 'PATCH', body)
-        : await sendJson<Device>('/devices', 'POST', { ...body, password: form.password })
+      const saved =
+        editing && device
+          ? await sendJson<Device>(`/devices/${device.id}`, 'PATCH', body)
+          : await sendJson<Device>('/devices', 'POST', { ...body, password: form.password })
       onSaved(saved)
     } catch (failure) {
       setError((failure as Error).message)
@@ -280,8 +289,10 @@ function DeviceForm({
       </label>
       <label className="device-form__field">
         Senha
+        {/* A senha fica cifrada e nunca volta pela API, então a cópia pede outra. */}
         <input className="field" type="password" value={form.password} onChange={update('password')}
-          required={!editing} placeholder={editing ? 'manter a atual' : undefined} />
+          required={!editing}
+          placeholder={editing ? 'manter a atual' : copying ? 'digite de novo' : undefined} />
       </label>
       <label className="device-form__field">
         Modelo
@@ -290,7 +301,13 @@ function DeviceForm({
       </label>
       <div className="device-form__actions">
         <button className="button button--primary" type="submit" disabled={saving}>
-          {saving ? 'Salvando…' : editing ? 'Salvar alterações' : 'Adicionar equipamento'}
+          {saving
+            ? 'Salvando…'
+            : editing
+              ? 'Salvar alterações'
+              : copying
+                ? 'Salvar cópia'
+                : 'Adicionar equipamento'}
         </button>
         <button className="button" type="button" onClick={onCancel} disabled={saving}>
           Cancelar
@@ -313,7 +330,8 @@ function Devices({
   const [syncing, setSyncing] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [editing, setEditing] = useState<Device | null | undefined>(undefined)
+  const [form, setForm] = useState<FormTarget | null>(null)
+  const addingNew = form?.device === null
 
   const saved = (device: Device) => {
     setDevices((current) =>
@@ -321,7 +339,7 @@ function Devices({
         ? current.map((item) => (item.id === device.id ? device : item))
         : [...current, device],
     )
-    setEditing(undefined)
+    setForm(null)
   }
 
   const discard = async (device: Device) => {
@@ -380,13 +398,19 @@ function Devices({
         <button
           type="button"
           className="button"
-          onClick={() => setEditing((current) => (current === null ? undefined : null))}
+          onClick={() => setForm(addingNew ? null : { device: null, editing: false })}
         >
-          {editing === null ? 'Fechar' : 'Adicionar facial'}
+          {addingNew ? 'Fechar' : 'Adicionar facial'}
         </button>
       </h2>
-      {editing !== undefined && (
-        <DeviceForm device={editing} onSaved={saved} onCancel={() => setEditing(undefined)} />
+      {form && (
+        <DeviceForm
+          // Remonta ao trocar de alvo, para os campos partirem dele.
+          key={`${form.device?.id ?? 'nova'}:${form.editing}`}
+          target={form}
+          onSaved={saved}
+          onCancel={() => setForm(null)}
+        />
       )}
       {devices.length === 0 && !error && <p className="panel__hint">Nenhum equipamento cadastrado.</p>}
       <ul className="devices">
@@ -400,8 +424,19 @@ function Devices({
               </span>
             </div>
             <div className="devices__actions">
-              <button type="button" className="button" onClick={() => setEditing(device)}>
+              <button
+                type="button"
+                className="button"
+                onClick={() => setForm({ device, editing: true })}
+              >
                 Editar
+              </button>
+              <button
+                type="button"
+                className="button"
+                onClick={() => setForm({ device, editing: false })}
+              >
+                Duplicar
               </button>
               <button type="button" className="button button--danger" onClick={() => discard(device)}>
                 Excluir
