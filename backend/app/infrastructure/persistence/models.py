@@ -28,7 +28,7 @@ class ResidentRecord(Base):
     by device and identifier together.
 
     ``name`` and ``photo`` are owned by the device and overwritten on every sync,
-    while ``apartment`` and ``block`` are maintained inside Monikraft until Sigma
+    while ``apartment`` and ``block`` are maintained inside pMoni until Sigma
     supplies them.
     """
 

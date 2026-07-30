@@ -1,4 +1,4 @@
-# Monikraft
+# pMoni
 
 Sistema de monitoramento de acesso facial em tempo real.
 
@@ -36,7 +36,7 @@ npm run dev
 ```
 
 A interface abre em `http://localhost:5173` e alcança a API pelo proxy do Vite. Se a
-API estiver em outro endereço, informe `MONIKRAFT_API` antes de iniciar.
+API estiver em outro endereço, informe `PMONI_API` antes de iniciar.
 
 ## Acesso à administração
 

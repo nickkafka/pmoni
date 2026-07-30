@@ -19,13 +19,13 @@ runtime = ApplicationRuntime()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("Inicializando Monikraft...")
+    logger.info("Inicializando pMoni...")
     init_database()
     logger.info("Banco de dados inicializado.")
     await runtime.start(app)
     yield
     await runtime.stop()
-    logger.info("Finalizando Monikraft...")
+    logger.info("Finalizando pMoni...")
 
 
 app = FastAPI(

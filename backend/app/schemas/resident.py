@@ -17,7 +17,7 @@ class ResidentRead(BaseModel):
 
 
 class ResidentLocationUpdate(BaseModel):
-    """Location maintained inside Monikraft until Sigma supplies it."""
+    """Location maintained inside pMoni until Sigma supplies it."""
 
     apartment: str | None = Field(default=None, max_length=32)
     block: str | None = Field(default=None, max_length=32)

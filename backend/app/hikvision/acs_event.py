@@ -14,7 +14,7 @@ rejection without identifying anyone, so it never reaches the domain.
 
 
 class AcsEventParser:
-    """Converts access-control journal entries into Monikraft domain events."""
+    """Converts access-control journal entries into pMoni domain events."""
 
     def parse(self, entry: dict[str, Any], device_id: int) -> AccessEvent | None:
         """Return the normalized event, or ``None`` when no person was identified."""

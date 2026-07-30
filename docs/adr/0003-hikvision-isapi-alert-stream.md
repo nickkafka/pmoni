@@ -5,7 +5,7 @@
 
 > O Alert Stream não existe nos terminais de controle de acesso: o DS-K1T342MFWX
 > responde HTTP 404 em `/ISAPI/Event/notification/alertStream`. A decisão abaixo
-> ficou restrita a câmeras e NVRs, que o Monikraft não integra.
+> ficou restrita a câmeras e NVRs, que o pMoni não integra.
 
 ## Decisão
 

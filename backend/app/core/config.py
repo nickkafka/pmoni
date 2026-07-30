@@ -9,7 +9,7 @@ DEFAULT_DATABASE_URL = f"sqlite:///{(BACKEND_ROOT / 'monikraft.db').as_posix()}"
 
 
 class Settings(BaseSettings):
-    APP_NAME: str = "Monikraft"
+    APP_NAME: str = "pMoni"
     VERSION: str = "0.1.0"
 
     DATABASE_URL: str = DEFAULT_DATABASE_URL

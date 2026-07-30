@@ -16,7 +16,7 @@ if hasattr(sys.stdout, "reconfigure"):
 logger.remove()
 
 logger.add(
-    LOG_PATH / "monikraft.log",
+    LOG_PATH / "pmoni.log",
     rotation="10 MB",
     retention="30 days",
     level="INFO",

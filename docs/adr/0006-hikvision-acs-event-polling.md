@@ -50,7 +50,7 @@ instantânea e passa a ter a latência do intervalo de consulta, aceitável para
 tela de portaria.
 
 A alternativa de notificação ativa (`/ISAPI/Event/notification/httpHosts`), que
-entrega a foto da captura junto do evento, exige que o Monikraft seja alcançável
+entrega a foto da captura junto do evento, exige que o pMoni seja alcançável
 pela rede do equipamento e altera a configuração dele. Fica registrada como
 evolução possível atrás da mesma porta `DeviceClient`, sem impacto no domínio.
 

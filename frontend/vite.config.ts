@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-const backend = process.env.MONIKRAFT_API ?? 'http://127.0.0.1:8000'
+const backend = process.env.PMONI_API ?? 'http://127.0.0.1:8000'
 
 /**
  * Every prefix the backend answers. A prefix missing here does not fail loudly:

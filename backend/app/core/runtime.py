@@ -56,7 +56,7 @@ class ApplicationRuntime:
         if settings.ADMIN_PASSWORD == Settings.model_fields["ADMIN_PASSWORD"].default:
             logger.warning(
                 "A administração está com a senha padrão. Defina ADMIN_PASSWORD antes "
-                "de expor o Monikraft fora da rede local."
+                "de expor o pMoni fora da rede local."
             )
         return AdminSessions(
             username=settings.ADMIN_USERNAME,

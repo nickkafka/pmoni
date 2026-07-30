@@ -21,12 +21,12 @@ uma captura contra a luz.
 
 ## Decisão
 
-O Monikraft mantém uma tabela `residents` própria, sincronizada do equipamento e
+O pMoni mantém uma tabela `residents` própria, sincronizada do equipamento e
 chaveada por `employee_no` — o mesmo identificador que o Sigma exporta, e portanto a
 junção natural quando aquela integração existir.
 
 A sincronização divide a posse dos campos: `name` e `photo` pertencem ao equipamento
-e são sobrescritos a cada execução; `apartment` e `block` pertencem ao Monikraft e
+e são sobrescritos a cada execução; `apartment` e `block` pertencem ao pMoni e
 nunca são tocados pela sincronização. Isso permite cadastrar o apartamento pela
 interface administrativa agora e trocar essa origem pelo Sigma depois, sem migração.
 

@@ -62,7 +62,7 @@ class HikvisionPersonDirectory(PersonDirectory):
             payload = await self._session.post_json(
                 self.USER_SEARCH_PATH,
                 {"UserInfoSearchCond": {
-                    "searchID": f"monikraft-{self._device_id}",
+                    "searchID": f"pmoni-{self._device_id}",
                     "searchResultPosition": position, "maxResults": self.PAGE_SIZE,
                 }},
             )

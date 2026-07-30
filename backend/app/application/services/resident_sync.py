@@ -22,7 +22,7 @@ class ResidentSyncService:
     """Copies the people enrolled on a device into the local resident directory.
 
     The device owns the identifier, the name and the photo; the apartment stays
-    untouched because it is maintained in Monikraft until Sigma provides it.
+    untouched because it is maintained in pMoni until Sigma provides it.
     """
 
     def __init__(

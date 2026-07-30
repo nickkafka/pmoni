@@ -27,6 +27,13 @@
   color: var(--gold-primary);
 }
 
+/* Discreto: a tela é para ler quem passou, não a marca. */
+.header__logo {
+  height: clamp(30px, 4.5vh, 52px);
+  width: auto;
+  display: block;
+}
+
 .header__status {
   display: inline-flex;
   align-items: center;

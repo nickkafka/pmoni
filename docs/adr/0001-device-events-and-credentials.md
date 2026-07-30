@@ -5,7 +5,7 @@
 
 ## Contexto
 
-O Monikraft recebe eventos de fabricantes diferentes e armazena credenciais de equipamentos cadastrados.
+O pMoni recebe eventos de fabricantes diferentes e armazena credenciais de equipamentos cadastrados.
 
 ## Decisão
 

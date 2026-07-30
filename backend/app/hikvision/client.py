@@ -181,7 +181,7 @@ class HikvisionClient(DeviceClient):
     ) -> dict[str, Any]:
         start_time, end_time = self._search_window(since)
         condition: dict[str, Any] = {
-            "searchID": f"monikraft-{self._device_id}",
+            "searchID": f"pmoni-{self._device_id}",
             "searchResultPosition": position,
             "maxResults": page_size or self.MAX_PAGE_SIZE,
             "major": 0,

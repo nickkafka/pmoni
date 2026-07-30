@@ -30,7 +30,7 @@ export default function LoginScreen() {
     <main className="login">
       <form className="login__card" onSubmit={submit}>
         <div className="login__heading">
-          <span className="login__brand">Monikraft</span>
+          <span className="login__brand">pMoni</span>
           <ThemeToggle />
         </div>
         <p className="label-caps login__label">Administração</p>

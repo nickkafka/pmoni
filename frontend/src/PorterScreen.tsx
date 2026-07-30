@@ -200,6 +200,20 @@ function History({ events }: { events: AccessEventMessage[] }) {
   )
 }
 
+/** Cai para o nome escrito se o arquivo do logo não estiver publicado. */
+function Brand() {
+  const [missing, setMissing] = useState(false)
+  if (missing) return <span className="header__brand">pMoni</span>
+  return (
+    <img
+      className="header__logo"
+      src="/logo.png"
+      alt="Grupo Prever"
+      onError={() => setMissing(true)}
+    />
+  )
+}
+
 function Clock() {
   const [now, setNow] = useState(() => new Date())
   useEffect(() => {
@@ -216,7 +230,7 @@ export default function PorterScreen() {
   return (
     <main className="porter">
       <header className="header">
-        <span className="header__brand">Monikraft</span>
+        <Brand />
         <span className={`header__status header__status--${status}`}>
           <span className="header__dot" aria-hidden="true" />
           {STATUS_LABEL[status]}

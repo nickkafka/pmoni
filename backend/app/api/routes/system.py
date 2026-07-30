@@ -7,6 +7,6 @@ router = APIRouter()
 async def health():
     return {
         "status": "online",
-        "application": "Monikraft",
+        "application": "pMoni",
         "version": "0.1.0"
     }

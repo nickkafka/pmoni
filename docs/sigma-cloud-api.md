@@ -19,7 +19,7 @@ Ambas declaram um único esquema: `Authorization: Bearer <JWT>`.
 
 Nenhuma das duas tem rota de login, autenticação ou emissão de token. O token de
 integração é fornecido pela Segware fora da API — é preciso solicitá-lo ao suporte
-deles informando a empresa. Ou seja, o Monikraft apenas guarda e usa um token que
+deles informando a empresa. Ou seja, o pMoni apenas guarda e usa um token que
 já existe; não há usuário e senha a trocar por sessão.
 
 Isso tem duas consequências práticas: o token precisa ser guardado cifrado, como já
@@ -40,7 +40,7 @@ chamada, tudo o que precisamos por morador (`AccountDwellerV2DTO`):
 | `federalRegister` | texto | CPF |
 | `photoUrl` | texto | Foto no Sigma |
 
-E `BlockUnitDTO` traz exatamente os dois campos que faltavam no Monikraft:
+E `BlockUnitDTO` traz exatamente os dois campos que faltavam no pMoni:
 
 ```
 block    (texto)    nome do bloco
@@ -104,7 +104,7 @@ na API de controle de acesso.
 
 **Qual campo do Sigma corresponde ao ID que a facial informa no evento?**
 
-O Monikraft casa o evento com o cadastro pelo `employeeNo` da facial. Para preencher
+O pMoni casa o evento com o cadastro pelo `employeeNo` da facial. Para preencher
 o apartamento automaticamente, é preciso saber qual campo do Sigma é esse mesmo
 número. Há dois candidatos:
 
