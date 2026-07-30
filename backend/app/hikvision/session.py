@@ -2,7 +2,11 @@ from typing import Any
 
 import httpx
 
-from app.hikvision.exceptions import HikvisionAuthenticationError, HikvisionProtocolError
+from app.hikvision.exceptions import (
+    HikvisionAuthenticationError,
+    HikvisionProtocolError,
+    HikvisionResourceMissing,
+)
 
 
 class IsapiSession:
@@ -62,6 +66,8 @@ class IsapiSession:
             response = await self._send(method, path, **kwargs)
         if response.status_code == httpx.codes.UNAUTHORIZED:
             raise HikvisionAuthenticationError("Credenciais recusadas pelo dispositivo.")
+        if response.status_code == httpx.codes.NOT_FOUND:
+            raise HikvisionResourceMissing(f"ISAPI {path} não existe no dispositivo.")
         if response.status_code >= httpx.codes.BAD_REQUEST:
             raise HikvisionProtocolError(f"ISAPI {path} respondeu HTTP {response.status_code}.")
         return response

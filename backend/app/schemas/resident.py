@@ -34,4 +34,5 @@ class ResidentSyncRead(BaseModel):
     updated: int
     photos_downloaded: int
     removed: int
+    without_photo: int
     failures: int

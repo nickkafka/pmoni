@@ -4,7 +4,7 @@ from typing import Any
 from app.application.ports.person_directory import PersonDirectory
 from app.core.logger import logger
 from app.domain.entities.resident import EnrolledPerson
-from app.hikvision.exceptions import HikvisionProtocolError
+from app.hikvision.exceptions import HikvisionProtocolError, HikvisionResourceMissing
 from app.hikvision.session import IsapiSession
 from app.hikvision.urls import isapi_path
 
@@ -41,7 +41,16 @@ class HikvisionPersonDirectory(PersonDirectory):
             )
 
     async def fetch_photo(self, reference: str) -> bytes | None:
-        photo = await self._session.get_bytes(reference)
+        """Return ``None`` when the device kept no picture for that enrollment.
+
+        A face enrolled from its biometric template alone has no image stored: some
+        firmwares omit the URL entirely, others publish one that answers 404. Neither
+        is a failure — there is simply nothing to show.
+        """
+        try:
+            photo = await self._session.get_bytes(reference)
+        except HikvisionResourceMissing:
+            return None
         return photo or None
 
     async def close(self) -> None:

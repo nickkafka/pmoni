@@ -358,7 +358,7 @@ function Devices({
   const syncAll = async () => {
     setMessage(null)
     setError(null)
-    const total = { created: 0, updated: 0, photos: 0, removed: 0, failures: 0 }
+    const total = { created: 0, updated: 0, photos: 0, removed: 0, semFoto: 0, failures: 0 }
     const problems: string[] = []
     for (const [index, device] of devices.entries()) {
       setSyncing(`${device.name} (${index + 1} de ${devices.length})`)
@@ -368,6 +368,7 @@ function Devices({
         total.updated += report.updated
         total.photos += report.photos_downloaded
         total.removed += report.removed
+        total.semFoto += report.without_photo
         total.failures += report.failures
       } catch (failure) {
         problems.push(`${device.name}: ${(failure as Error).message}`)
@@ -377,6 +378,8 @@ function Devices({
     setMessage(
       `${total.created} novos, ${total.updated} atualizados, ${total.photos} fotos` +
         (total.removed ? `, ${total.removed} removidos` : '') +
+        // Sem foto não é defeito: a facial guardou só o template do rosto.
+        (total.semFoto ? `, ${total.semFoto} sem foto na facial` : '') +
         (total.failures ? `, ${total.failures} falhas` : ''),
     )
     if (problems.length) setError(problems.join(' · '))

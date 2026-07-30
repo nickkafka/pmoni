@@ -48,6 +48,11 @@ devolve três registros por página e informa `OK` mesmo com páginas restantes,
 ambas as buscas paginam por `totalMatches`. Confiar em `responseStatusStrg`
 truncaria o diretório silenciosamente em três pessoas.
 
+Nem todo rosto cadastrado tem imagem. Em três dos sete equipamentos em operação, os
+rostos foram gravados apenas como template biométrico: alguns firmwares omitem a URL
+da foto e outros publicam uma que responde 404. Isso não é falha, e a sincronização
+relata separadamente — antes contava junto com erro de rede e parecia defeito.
+
 Pessoas cadastradas em mais de um equipamento ocupam uma única linha, porque
 `employee_no` é único. Isso pressupõe que os identificadores venham de uma origem
 comum, como é o caso quando o Sigma exporta para todos os equipamentos.

@@ -55,5 +55,7 @@ export type SyncReport = {
   updated: number
   photos_downloaded: number
   removed: number
+  /** Pessoas cujo rosto a facial guarda só como template, sem imagem. */
+  without_photo: number
   failures: number
 }

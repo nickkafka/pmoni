@@ -12,9 +12,14 @@ DEVICE = Device(1, "Portaria", "192.168.1.10", 80, "admin", "DS-K1T342MFWX", Tru
 
 
 class FakeDirectory(PersonDirectory):
-    def __init__(self, people: list[EnrolledPerson], *, broken: set[str] | None = None) -> None:
+    def __init__(
+        self, people: list[EnrolledPerson], *, broken: set[str] | None = None,
+        missing: set[str] | None = None,
+    ) -> None:
         self.people = people
         self.broken = broken or set()
+        # O equipamento guardou só o template: não há imagem para entregar.
+        self.missing = missing or set()
         self.downloaded: list[str] = []
         self.closed = False
 
@@ -25,6 +30,8 @@ class FakeDirectory(PersonDirectory):
     async def fetch_photo(self, reference: str) -> bytes | None:
         if reference in self.broken:
             raise ConnectionError("foto indisponível")
+        if reference in self.missing:
+            return None
         self.downloaded.append(reference)
         return b"jpeg-" + reference.encode()
 
@@ -143,6 +150,44 @@ class ResidentSyncServiceTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((report.created, report.failures), (1, 1))
         self.assertEqual(repository.rows[(1, "2")]["name"], "nk")
         self.assertIsNone(repository.photo_of(1, "2"))
+
+    async def test_separates_a_missing_picture_from_a_failure(self) -> None:
+        """Uma facial que guardou só o template não está com defeito."""
+        directory = FakeDirectory(
+            [person("2", "nk", "/face/2.jpg"), person("7", "Ana", "/face/7.jpg")],
+            missing={"/face/7.jpg"},
+        )
+
+        report = await ResidentSyncService(FakeRepository(), FakeFactory(directory)).sync(DEVICE)
+
+        self.assertEqual(report.without_photo, 1)
+        self.assertEqual(report.failures, 0)
+        self.assertEqual(report.photos_downloaded, 1)
+
+    async def test_still_reports_a_real_failure(self) -> None:
+        directory = FakeDirectory(
+            [person("2", "nk", "/face/2.jpg")], broken={"/face/2.jpg"}
+        )
+
+        report = await ResidentSyncService(FakeRepository(), FakeFactory(directory)).sync(DEVICE)
+
+        self.assertEqual((report.failures, report.without_photo), (1, 0))
+
+    async def test_counts_someone_the_device_never_offered_a_picture_for(self) -> None:
+        directory = FakeDirectory([person("2", "nk", None)])
+
+        report = await ResidentSyncService(FakeRepository(), FakeFactory(directory)).sync(DEVICE)
+
+        self.assertEqual((report.without_photo, report.failures), (1, 0))
+
+    async def test_a_photo_already_stored_is_not_reported_as_missing(self) -> None:
+        directory = FakeDirectory([person("2", "nk", "/face/2.jpg")])
+        service = ResidentSyncService(FakeRepository(), FakeFactory(directory))
+        await service.sync(DEVICE)
+
+        report = await service.sync(DEVICE)
+
+        self.assertEqual((report.without_photo, report.photos_downloaded), (0, 0))
 
     async def test_stores_a_person_without_any_enrolled_face(self) -> None:
         repository = FakeRepository()

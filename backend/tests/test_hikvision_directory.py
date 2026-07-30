@@ -2,6 +2,7 @@ import unittest
 from typing import Any
 
 from app.hikvision.directory import HikvisionPersonDirectory
+from app.hikvision.exceptions import HikvisionResourceMissing
 
 
 class FakeIsapiSession:
@@ -19,6 +20,8 @@ class FakeIsapiSession:
         self.faces = faces
         self.is_open = False
         self.downloads: list[str] = []
+        self.absent: set[str] = set()
+        self.unreachable: set[str] = set()
 
     async def open(self) -> None:
         self.is_open = True
@@ -27,6 +30,10 @@ class FakeIsapiSession:
         self.is_open = False
 
     async def get_bytes(self, path: str) -> bytes:
+        if path in self.absent:
+            raise HikvisionResourceMissing(f"ISAPI {path} não existe no dispositivo.")
+        if path in self.unreachable:
+            raise ConnectionError("equipamento inacessível")
         self.downloads.append(path)
         return b"jpeg"
 
@@ -86,6 +93,22 @@ class HikvisionPersonDirectoryTests(unittest.IsolatedAsyncioTestCase):
         people = await self.collect(session)
 
         self.assertEqual([person.employee_no for person in people], ["2"])
+
+    async def test_reports_no_picture_when_the_device_answers_404(self) -> None:
+        """Rosto cadastrado só pelo template: a URL existe, o arquivo não."""
+        session = FakeIsapiSession([user("2", "nk")], [face("2", 54)])
+        session.absent.add("/LOCALS/pic/enrlFace/0/0000000054.jpg")
+        directory = HikvisionPersonDirectory(session=session, device_id=1)
+
+        self.assertIsNone(await directory.fetch_photo("/LOCALS/pic/enrlFace/0/0000000054.jpg"))
+
+    async def test_still_reports_a_transport_failure(self) -> None:
+        session = FakeIsapiSession([user("2", "nk")], [face("2", 54)])
+        session.unreachable.add("/face.jpg")
+        directory = HikvisionPersonDirectory(session=session, device_id=1)
+
+        with self.assertRaises(ConnectionError):
+            await directory.fetch_photo("/face.jpg")
 
     async def test_fetches_the_photo_from_its_reference(self) -> None:
         session = FakeIsapiSession([user("2", "nk")], [face("2", 54)])
