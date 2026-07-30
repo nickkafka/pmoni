@@ -5,7 +5,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_DATABASE_URL = f"sqlite:///{(BACKEND_ROOT / 'monikraft.db').as_posix()}"
+DEFAULT_DATABASE_URL = f"sqlite:///{(BACKEND_ROOT / 'pmoni.db').as_posix()}"
 
 
 class Settings(BaseSettings):

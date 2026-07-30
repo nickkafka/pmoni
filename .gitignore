@@ -3,5 +3,5 @@ backend/__pycache__/
 **/__pycache__/
 *.pyc
 backend/logs/
-backend/monikraft.db
+backend/pmoni.db
 backend/.env
