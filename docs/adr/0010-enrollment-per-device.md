@@ -36,6 +36,21 @@ foi cadastrado com identificadores diferentes em cada equipamento aparece em lin
 separadas: sem uma origem comum, unificá-los seria adivinhação — exatamente o erro
 que causou este defeito.
 
+## A foto emprestada de outro equipamento
+
+Equipamentos que gravam o rosto apenas como template biométrico deixam o cadastro
+sem imagem (ADR 0007). Como o cadastro é por equipamento, uma passagem em uma dessas
+faciais apareceria sem rosto mesmo havendo foto da mesma pessoa em outra.
+
+A busca do morador passa a apontar para o cadastro que tem a imagem, de qualquer
+equipamento, **exigindo identificador e nome iguais** — a mesma regra do agrupamento.
+Emprestar por identificador apenas reintroduziria o defeito que este ADR corrige: nos
+equipamentos em operação, o identificador 2 nomeia três pessoas diferentes.
+
+A identidade exibida continua sendo a do cadastro de origem; apenas a imagem vem de
+outro. Nos dados reais, isso recuperou 160 dos 164 cadastros sem foto, sem nenhuma
+divergência entre nome e rosto.
+
 ## Consequências
 
 A mesma pessoa ocupa uma linha por equipamento em que está cadastrada, o que

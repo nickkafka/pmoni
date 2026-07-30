@@ -60,6 +60,9 @@ class FakeRepository(ResidentRepository):
     def get_photo(self, resident_id: int) -> bytes | None:
         raise NotImplementedError
 
+    def find_photo_holder(self, employee_no: str, name: str) -> int | None:
+        raise NotImplementedError
+
     def photo_of(self, device_id: int, employee_no: str) -> bytes | None:
         return self.rows.get((device_id, employee_no), {}).get("photo")
 

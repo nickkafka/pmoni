@@ -17,7 +17,7 @@ class AccessEventWebSocketTests(unittest.TestCase):
         self.assertEqual(message["data"]["event_time"], "2026-07-24T00:00:00+00:00")
 
     def test_carries_the_resident_the_porter_has_to_read(self) -> None:
-        resident = ResidentSummary(52, "SIGMA-42", "nk", "301", "A", True)
+        resident = ResidentSummary(52, "SIGMA-42", "nk", "301", "A", 52)
 
         message = _event_message(EnrichedAccessEvent(EVENT, resident))["data"]["resident"]
 
@@ -54,9 +54,19 @@ class AccessEventWebSocketTests(unittest.TestCase):
         self.assertIsNone(_event_message(EnrichedAccessEvent(EVENT, None))["data"]["device"])
 
     def test_omits_the_photo_url_when_no_photo_was_synced(self) -> None:
-        resident = ResidentSummary(52, "SIGMA-42", "nk", "301", "A", False)
+        resident = ResidentSummary(52, "SIGMA-42", "nk", "301", "A", None)
 
         message = _event_message(EnrichedAccessEvent(EVENT, resident))["data"]["resident"]
 
         assert message is not None
         self.assertIsNone(message["photo_url"])
+
+    def test_points_at_the_enrollment_that_holds_the_picture(self) -> None:
+        """A facial de origem pode ter guardado o rosto só como template."""
+        resident = ResidentSummary(52, "SIGMA-42", "nk", "301", "A", 88)
+
+        message = _event_message(EnrichedAccessEvent(EVENT, resident))["data"]["resident"]
+
+        assert message is not None
+        self.assertEqual(message["id"], 52)
+        self.assertEqual(message["photo_url"], "/residents/88/photo")

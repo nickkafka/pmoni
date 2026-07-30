@@ -12,7 +12,7 @@ from app.websocket.access_events import router
 
 def passage(serial: str, name: str) -> EnrichedAccessEvent:
     event = AccessEvent(serial, 1, "2", "face", True, datetime(2026, 7, 28, tzinfo=UTC))
-    return EnrichedAccessEvent(event, ResidentSummary(9, "2", name, "301", "A", True))
+    return EnrichedAccessEvent(event, ResidentSummary(9, "2", name, "301", "A", 9))
 
 
 class FakeEnricher:

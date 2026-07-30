@@ -26,6 +26,19 @@ class SqlAlchemyResidentRepository(ResidentRepository):
         record = self._session.get(ResidentRecord, resident_id)
         return record.photo if record else None
 
+    def find_photo_holder(self, employee_no: str, name: str) -> int | None:
+        return self._session.scalar(
+            select(ResidentRecord.id)
+            .where(
+                ResidentRecord.employee_no == employee_no,
+                ResidentRecord.name == name,
+                ResidentRecord.photo.is_not(None),
+            )
+            # Estável entre chamadas, para a tela não trocar de foto sem motivo.
+            .order_by(ResidentRecord.id)
+            .limit(1)
+        )
+
     def photo_reference_of(self, device_id: int, employee_no: str) -> str | None:
         record = self._find(device_id, employee_no)
         if record is None or record.photo is None:

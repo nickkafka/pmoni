@@ -87,5 +87,7 @@ def _resident_message(resident: ResidentSummary | None) -> dict | None:
         "name": resident.name,
         "apartment": resident.apartment,
         "block": resident.block,
-        "photo_url": f"/residents/{resident.id}/photo" if resident.has_photo else None,
+        # Pode apontar para o cadastro da pessoa em outra facial, quando a de
+        # origem guardou o rosto apenas como template.
+        "photo_url": f"/residents/{resident.photo_id}/photo" if resident.photo_id else None,
     }

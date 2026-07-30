@@ -19,6 +19,16 @@ class ResidentRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def find_photo_holder(self, employee_no: str, name: str) -> int | None:
+        """Any enrollment of this person that has a picture, from whichever device.
+
+        Matched by identifier *and* name: the identifier alone names different people
+        on devices enrolled separately, and borrowing across that would show the
+        wrong face.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
     def photo_reference_of(self, device_id: int, employee_no: str) -> str | None:
         """Return the stored enrollment reference, used to skip unchanged photos."""
         raise NotImplementedError

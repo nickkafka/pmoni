@@ -1,4 +1,5 @@
 from collections.abc import Callable
+from dataclasses import replace
 
 from sqlalchemy.orm import Session
 
@@ -21,7 +22,17 @@ class SessionScopedResidentLookup(ResidentLookup):
     def find(self, device_id: int, employee_no: str) -> ResidentSummary | None:
         session = self._session_factory()
         try:
-            resident = SqlAlchemyResidentRepository(session).find(device_id, employee_no)
-            return resident.to_summary() if resident else None
+            repository = SqlAlchemyResidentRepository(session)
+            resident = repository.find(device_id, employee_no)
+            if resident is None:
+                return None
+            summary = resident.to_summary()
+            if summary.photo_id is not None:
+                return summary
+            # Equipamentos que guardam o rosto só como template deixam o cadastro sem
+            # imagem. A mesma pessoa costuma ter foto em outra facial, e o porteiro
+            # precisa vê-la para conferir quem passou.
+            borrowed = repository.find_photo_holder(resident.employee_no, resident.name)
+            return summary if borrowed is None else replace(summary, photo_id=borrowed)
         finally:
             session.close()

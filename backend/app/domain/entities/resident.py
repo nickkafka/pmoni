@@ -11,7 +11,12 @@ class ResidentSummary:
     name: str
     apartment: str | None
     block: str | None
-    has_photo: bool = False
+    photo_id: int | None = None
+    """Enrollment holding the picture, which may be another device's.
+
+    Some equipment stores a face only as a biometric template, so the enrollment the
+    event came from often has no image while another one for the same person does.
+    """
 
 
 @dataclass(frozen=True, slots=True)
@@ -46,5 +51,6 @@ class Resident:
 
     def to_summary(self) -> ResidentSummary:
         return ResidentSummary(
-            self.id, self.employee_no, self.name, self.apartment, self.block, self.has_photo
+            self.id, self.employee_no, self.name, self.apartment, self.block,
+            self.id if self.has_photo else None,
         )

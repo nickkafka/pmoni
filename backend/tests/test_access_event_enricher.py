@@ -50,7 +50,7 @@ class FakeDeviceLookup(DeviceLookup):
         return DeviceSummary(device_id, name) if name else None
 
 
-RESIDENT = ResidentSummary(52, "2", "nk", "301", "A", True)
+RESIDENT = ResidentSummary(52, "2", "nk", "301", "A", 52)
 
 
 class AccessEventEnricherTests(unittest.IsolatedAsyncioTestCase):
@@ -75,7 +75,7 @@ class AccessEventEnricherTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_does_not_borrow_the_person_another_device_gave_that_id(self) -> None:
         """The identifier alone would have shown the photo of somebody else."""
-        outra_facial = ResidentSummary(70, "2", "naldo", None, None, True)
+        outra_facial = ResidentSummary(70, "2", "naldo", None, None, 70)
 
         enriched = await self.enrich(
             access_event(), FakeLookup({(9, "2"): outra_facial, (1, "2"): RESIDENT})
