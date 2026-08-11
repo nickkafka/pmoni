@@ -8,7 +8,7 @@ const backend = process.env.PMONI_API ?? 'http://127.0.0.1:8000'
  * the dev server answers the application's own HTML instead, so a POST turns into
  * a 404 and a GET into a broken image. Add new backend prefixes here.
  */
-const API_PREFIXES = ['auth', 'devices', 'residents', 'access-events']
+const API_PREFIXES = ['auth', 'automation', 'devices', 'residents', 'access-events']
 
 // https://vite.dev/config/
 export default defineConfig({

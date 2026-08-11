@@ -29,11 +29,11 @@ async function parse<T>(response: Response): Promise<T> {
   return response.json() as Promise<T>
 }
 
-export function getJson<T>(path: string): Promise<T> {
-  return fetch(path, { headers: headers() }).then((response) => parse<T>(response))
+export function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
+  return fetch(path, { headers: headers(), signal }).then((response) => parse<T>(response))
 }
 
-export function sendJson<T>(path: string, method: 'POST' | 'PATCH', body?: unknown): Promise<T> {
+export function sendJson<T>(path: string, method: 'POST' | 'PUT' | 'PATCH', body?: unknown): Promise<T> {
   return fetch(path, {
     method,
     headers: headers({ 'Content-Type': 'application/json' }),

@@ -4,11 +4,12 @@ from fastapi import FastAPI
 
 from app.application.services.access_event_enricher import AccessEventEnricher
 from app.application.services.admin_sessions import AdminSessions
+from app.application.services.daily_import import DailyImportScheduler
 from app.application.services.device_manager import DeviceManager
 from app.core.config import Settings, settings
 from app.core.logger import logger
 from app.database.database import SessionLocal
-from app.hikvision.factory import HikvisionClientFactory
+from app.hikvision.factory import HikvisionClientFactory, HikvisionPersonDirectoryFactory
 from app.infrastructure.persistence.device_lookup import SessionScopedDeviceLookup
 from app.infrastructure.persistence.device_repository import SqlAlchemyDeviceRepository
 from app.infrastructure.persistence.resident_lookup import SessionScopedResidentLookup
@@ -24,6 +25,7 @@ class ApplicationRuntime:
         self.device_manager: DeviceManager | None = None
         self.access_events: AccessEventEnricher | None = None
         self.snapshots: InMemorySnapshotStore | None = None
+        self.daily_import: DailyImportScheduler | None = None
 
     async def start(self, app: FastAPI) -> None:
         app.state.admin_sessions = self._build_admin_sessions()
@@ -32,6 +34,9 @@ class ApplicationRuntime:
             app.state.device_manager = None
             app.state.access_events = None
             app.state.snapshots = None
+            # Sem a chave não há como decifrar a senha das faciais, e a importação
+            # falharia em todas elas todo dia.
+            app.state.daily_import = None
             return
         self._session = SessionLocal()
         repository = SqlAlchemyDeviceRepository(self._session)
@@ -47,9 +52,17 @@ class ApplicationRuntime:
             SessionScopedDeviceLookup(SessionLocal),
         )
         await self.access_events.start()
+        # Cada execução abre a própria sessão: a rotina roda de madrugada, muito
+        # depois da sessão desta inicialização, e uma sessão parada por horas guarda
+        # dados vencidos.
+        self.daily_import = DailyImportScheduler(
+            SessionLocal, HikvisionPersonDirectoryFactory(repository, cipher)
+        )
+        await self.daily_import.start()
         app.state.device_manager = self.device_manager
         app.state.access_events = self.access_events
         app.state.snapshots = self.snapshots
+        app.state.daily_import = self.daily_import
 
     @staticmethod
     def _build_admin_sessions() -> AdminSessions:
@@ -65,6 +78,11 @@ class ApplicationRuntime:
         )
 
     async def stop(self) -> None:
+        # Primeiro o agendador: parar depois deixaria uma importação começar sobre
+        # serviços já desligados.
+        if self.daily_import is not None:
+            await self.daily_import.stop()
+            self.daily_import = None
         if self.access_events is not None:
             await self.access_events.stop()
             self.access_events = None

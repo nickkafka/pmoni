@@ -29,6 +29,16 @@ class SqlAlchemyDeviceRepository(DeviceRepository, DeviceCredentialsStore):
         records = self._session.scalars(select(DeviceRecord).where(DeviceRecord.enabled.is_(True)).order_by(DeviceRecord.name))
         return [self._to_entity(record) for record in records]
 
+    def list_all(self) -> list[Device]:
+        """Every device, disabled ones included.
+
+        The import matches against this rather than against the enabled list: a
+        device that was turned off is still registered, and matching only the enabled
+        ones would quietly create a second row for the same equipment.
+        """
+        records = self._session.scalars(select(DeviceRecord).order_by(DeviceRecord.name))
+        return [self._to_entity(record) for record in records]
+
     def update(self, device: Device, encrypted_credentials: str | None) -> Device | None:
         if device.id is None:
             return None

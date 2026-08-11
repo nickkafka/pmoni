@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { MouseEvent as ReactMouseEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { useAccessEventStream } from './accessEventsContext'
+import { SearchField, SearchResults } from './ResidentSearch'
 import { ThemeToggle } from './ThemeToggle'
+import { useResidentSearch } from './useResidentSearch'
 import type { AccessEventMessage, ConnectionStatus } from './types'
 import './PorterScreen.css'
 
@@ -130,7 +132,8 @@ function CurrentEvent({ event }: { event: AccessEventMessage }) {
   )
 }
 
-const PREVIEW_WIDTH = 320
+/** Acompanha a largura de `.preview` no CSS, que posiciona o card na tela. */
+const PREVIEW_WIDTH = 544
 const PREVIEW_GAP = 12
 
 type PreviewAt = { event: AccessEventMessage; left: number; bottom: number }
@@ -139,8 +142,22 @@ function Preview({ at }: { at: PreviewAt }) {
   const { event } = at
   const resident = event.resident
   const location = locationOf(event)
+  const card = useRef<HTMLElement>(null)
+  const [bottom, setBottom] = useState(at.bottom)
+
+  // Anchored above the strip, the card grows upward — and since it was enlarged it
+  // no longer always fits there. Measured after rendering, because its height
+  // depends on how far the name wraps, and slid down when the top would be cut off:
+  // covering part of the strip still shows the face, while running off the screen
+  // hides exactly what the porter opened it to see.
+  useLayoutEffect(() => {
+    const height = card.current?.offsetHeight ?? 0
+    const highest = window.innerHeight - height - PREVIEW_GAP
+    setBottom(Math.min(at.bottom, Math.max(PREVIEW_GAP, highest)))
+  }, [at])
+
   return (
-    <aside className="preview" style={{ left: at.left, bottom: at.bottom }}>
+    <aside className="preview" ref={card} style={{ left: at.left, bottom }}>
       <div className="preview__photos">
         <figure className="shot">
           <Photo event={event} size="preview" />
@@ -226,11 +243,13 @@ function Clock() {
 export default function PorterScreen() {
   const { events, status } = useAccessEventStream()
   const [current, ...previous] = events
+  const search = useResidentSearch()
 
   return (
-    <main className="porter">
+    <main className={`porter${search.open ? ' porter--searching' : ''}`}>
       <header className="header">
         <Brand />
+        <SearchField search={search} />
         <span className={`header__status header__status--${status}`}>
           <span className="header__dot" aria-hidden="true" />
           {STATUS_LABEL[status]}
@@ -254,6 +273,8 @@ export default function PorterScreen() {
       )}
 
       <History events={previous} />
+
+      {search.open && <SearchResults search={search} />}
     </main>
   )
 }

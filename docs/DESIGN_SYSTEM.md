@@ -120,12 +120,25 @@ text-shadow: 0 1px 3px rgba(0,0,0,0.35);
 ## 3. Tipografia
 
 **Família:** `"Montserrat", "Inter", ui-sans-serif, system-ui, sans-serif`
-Pesos carregados: 200, 300, 400, 500, 600, 700.
 
-```html
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@200;300;400;500;600;700&display=swap" rel="stylesheet">
+A fonte é embutida, não buscada no Google: a guarita pode ficar sem internet, e ali
+a tela subiria com a fonte do sistema — a hierarquia por peso desta seção depende de
+a Montserrat estar carregada. Os arquivos são variáveis, então cobrem a faixa
+100–900 contínua em vez de uma lista de pesos.
+
+```css
+@font-face {
+  font-family: 'Montserrat';
+  src: url('/fonts/Montserrat-Variable.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
 ```
+
+A itálica é um segundo arquivo (`Montserrat-Italic-Variable.ttf`) porque
+`font-synthesis: none` impede o navegador de inclinar a normal — sem ele,
+`font-style: italic` não teria efeito. Licença em `frontend/public/fonts/OFL.txt`.
 
 | Papel | Tamanho | Peso | Extras |
 |---|---|---|---|
@@ -499,7 +512,7 @@ Regras:
 
 ## 10. Checklist de conformidade
 
-- [ ] Montserrat carregada com pesos 300/400/600/700
+- [ ] Montserrat servida do próprio projeto, sem depender de rede
 - [ ] Fundo radial + textura de ruído aplicados no `body`
 - [ ] Toda seção aberta por micro-label maiúsculo espaçado
 - [ ] CTA principal = pílula dourada 56px com texto escuro maiúsculo espaçado

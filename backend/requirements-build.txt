@@ -1,0 +1,4 @@
+# Ferramentas usadas apenas para gerar o instalador. Não são necessárias para
+# rodar a aplicação a partir do código.
+-r requirements.txt
+pyinstaller==6.18.0

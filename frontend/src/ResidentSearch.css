@@ -1,0 +1,286 @@
+/* Consulta de morador — §2 e §3 do docs/DESIGN_SYSTEM.md.
+   Discreta no cabeçalho e ausente da tela até alguém digitar: a portaria é para
+   assistir, e a busca só existe quando a facial falhou. */
+
+.search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px 0 14px;
+  height: 40px;
+  width: clamp(230px, 24vw, 380px);
+  border-radius: 999px;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  box-sizing: border-box;
+}
+
+.search:focus-within {
+  border-color: var(--gold-primary);
+}
+
+.search__icon {
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.search:focus-within .search__icon {
+  color: var(--gold-primary);
+}
+
+.search__field {
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.search__field::placeholder {
+  color: var(--text-muted);
+}
+
+/* O X nativo do type=search não segue o tema e some no escuro. */
+.search__field::-webkit-search-cancel-button {
+  display: none;
+}
+
+.search__clear {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: var(--text-muted);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.search__clear:hover {
+  color: var(--gold-primary);
+}
+
+/* Como pesquisar ------------------------------------------------------------ */
+
+.search__help {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  font-style: italic;
+  cursor: help;
+}
+
+.search__help:hover,
+.search__help:focus-visible {
+  color: var(--gold-primary);
+  border-color: var(--gold-primary);
+  outline: none;
+}
+
+/* Ancorado na barra inteira, e não no ícone: alinhado à esquerda dela, o balão
+   cabe na tela mesmo com a busca no canto do cabeçalho. */
+.search__bubble {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  z-index: 40;
+  width: max-content;
+  max-width: min(420px, 70vw);
+  padding: 14px 16px;
+  border-radius: var(--radius-card);
+  border: 1px solid var(--card-border);
+  background: var(--bg-overlay);
+  box-shadow: var(--overlay-shadow);
+  text-align: left;
+  font-style: normal;
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  pointer-events: none;
+}
+
+.search__help:hover .search__bubble,
+.search__help:focus-visible .search__bubble {
+  visibility: visible;
+  opacity: 1;
+}
+
+.search__bubble-title {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--label-caps);
+}
+
+.search__examples {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: baseline;
+  gap: 6px 14px;
+  margin: 12px 0 0;
+}
+
+.search__examples dt {
+  font-family: ui-monospace, 'Cascadia Mono', 'Consolas', monospace;
+  font-size: 12.5px;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+/* O traço é o que precisa saltar: é a única parte que ninguém adivinharia. */
+.search__examples dt b {
+  color: var(--gold-primary);
+}
+
+.search__examples dd {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 300;
+  color: var(--text-secondary);
+}
+
+.search__bubble-note {
+  display: block;
+  margin-top: 12px;
+  font-size: 11px;
+  font-weight: 300;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+/* Painel de resultados ----------------------------------------------------- */
+
+.results {
+  grid-area: results;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: clamp(12px, 1.6vh, 18px);
+  border-radius: var(--radius-card);
+  border: 1px solid var(--card-border);
+  background: var(--card-gradient);
+  box-shadow: var(--card-shadow);
+}
+
+.results__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--divider);
+}
+
+.results__count {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.results__empty {
+  margin: 18px 0 0;
+  font-size: 13px;
+  font-weight: 300;
+  color: var(--text-secondary);
+}
+
+.results__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+  min-height: 0;
+  /* A lista rola sozinha; a tela nunca rola, senão o cabeçalho e a passagem atual
+     sairiam de vista junto. */
+  scrollbar-width: thin;
+}
+
+.found {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 2px;
+  border-bottom: 1px solid var(--divider);
+}
+
+.found:last-child {
+  border-bottom: none;
+}
+
+.found__photo {
+  width: 62px;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  border-radius: 10px;
+  background: var(--placeholder-surface);
+  border: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+
+.found__about {
+  min-width: 0;
+}
+
+.found__name {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow-wrap: break-word;
+}
+
+/* O apartamento é a resposta que o porteiro procura, então ganha o destaque. */
+.found__location {
+  margin: 3px 0 0;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--gold-primary);
+}
+
+.found__location--missing {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+
+.found__document {
+  margin: 3px 0 0;
+  font-size: 12px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+
+.found__devices {
+  margin: 4px 0 0;
+  font-size: 10px;
+  font-weight: var(--label-weight);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  overflow-wrap: break-word;
+}

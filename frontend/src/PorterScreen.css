@@ -2,11 +2,63 @@
 
 .porter {
   min-height: 100svh;
+  max-height: 100svh;
   display: grid;
   grid-template-rows: auto 1fr auto;
+  grid-template-columns: 1fr;
+  grid-template-areas:
+    'header'
+    'current'
+    'history';
   gap: clamp(12px, 2vh, 26px);
   padding: clamp(12px, 2vh, 22px) clamp(16px, 3vw, 36px);
   box-sizing: border-box;
+}
+
+/* A consulta abre uma coluna em vez de uma janela por cima. O porteiro está
+   procurando alguém que chegou, mas as faciais continuam passando enquanto isso —
+   cobrir a passagem atual, mesmo que só por alguns segundos, é perder justamente o
+   que a tela existe para mostrar. Aqui a passagem apenas estreita, e segue visível. */
+.porter--searching {
+  grid-template-columns: 1fr clamp(300px, 24vw, 420px);
+  grid-template-areas:
+    'header  header'
+    'current results'
+    'history results';
+}
+
+.header {
+  grid-area: header;
+}
+.current,
+.waiting {
+  grid-area: current;
+}
+.history {
+  grid-area: history;
+}
+
+/* A tipografia da passagem é medida em vw, ou seja, na largura da janela — que não
+   muda quando a consulta abre e estreita só a coluna. Sem reduzir aqui, um nome
+   longo passa a quebrar em mais linhas e escapa para fora do card. */
+.porter--searching .current__name {
+  font-size: clamp(26px, 3.4vw, 52px);
+}
+
+.porter--searching .current__location {
+  font-size: clamp(22px, 2.8vw, 42px);
+}
+
+.porter--searching .current__location--missing {
+  font-size: clamp(14px, 1.5vw, 22px);
+}
+
+.porter--searching .photo--large {
+  width: clamp(150px, 19vw, 260px);
+}
+
+.porter--searching .current__photos--paired .photo--large {
+  width: clamp(110px, 13vw, 190px);
 }
 
 /* Header ----------------------------------------------------------------- */
@@ -27,9 +79,11 @@
   color: var(--gold-primary);
 }
 
-/* Discreto: a tela é para ler quem passou, não a marca. */
+/* Discreto: a tela é para ler quem passou, não a marca. Mas o logo traz "GRUPO
+   PREVER" escrito dentro, e abaixo de ~44px o texto vira borrão — discreto demais
+   deixa de ser marca e vira sujeira no canto. */
 .header__logo {
-  height: clamp(30px, 4.5vh, 52px);
+  height: clamp(44px, 6vh, 64px);
   width: auto;
   display: block;
 }
@@ -376,11 +430,15 @@
 
 /* Fixed, positioned above the strip: the list scrolls sideways and an
    absolutely positioned card would be clipped by that container. */
+/* Todo o conjunto 70% maior que o original: a miniatura da tira já é pequena, e
+   o preview existe justamente para o porteiro conferir o rosto. Mexer só na foto
+   deixaria o nome e o apartamento miúdos ao lado dela, então cada medida cresceu
+   junto — a largura em PREVIEW_WIDTH, no PorterScreen.tsx, acompanha. */
 .preview {
   position: fixed;
-  width: 320px;
+  width: 544px;
   box-sizing: border-box;
-  padding: 16px;
+  padding: 27px;
   border-radius: var(--radius-card);
   border: 1px solid var(--card-border);
   background: var(--card-gradient);
@@ -391,40 +449,40 @@
 
 .preview__photos {
   display: flex;
-  gap: 10px;
-  margin-bottom: 12px;
+  gap: 17px;
+  margin-bottom: 20px;
 }
 
 .photo--preview {
-  width: 138px;
+  width: 235px;
   aspect-ratio: 3 / 4;
-  font-size: 32px;
+  font-size: 54px;
 }
 
 .preview__name {
   margin: 0;
-  font-size: 17px;
+  font-size: 29px;
   font-weight: 600;
   color: var(--text-primary);
   line-height: 1.2;
 }
 
 .preview__location {
-  margin: 6px 0 0;
-  font-size: 22px;
+  margin: 10px 0 0;
+  font-size: 37px;
   font-weight: 700;
   color: var(--gold-primary);
 }
 
 .preview__location--missing {
-  font-size: 14px;
+  font-size: 24px;
   font-weight: 400;
   color: var(--text-secondary);
 }
 
 .preview__meta {
-  margin: 8px 0 0;
-  font-size: 12px;
+  margin: 14px 0 0;
+  font-size: 20px;
   font-weight: 300;
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;

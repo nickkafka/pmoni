@@ -43,6 +43,71 @@ class SqlAlchemyResidentRepositoryTests(unittest.TestCase):
 
         self.assertIsNone(self.repository.find_photo_holder("2", "naldo"))
 
+    def test_writes_person_details_to_every_enrollment_that_names_them(self) -> None:
+        """O apartamento é da pessoa: ela responde igual em qualquer portaria."""
+        self.enrol(1, "7", "nk")
+        self.enrol(2, "7", "nk")
+
+        written = self.repository.set_person_details(
+            "7", "nk", {"apartment": "301", "document": "123.456.789-00"}
+        )
+
+        self.assertEqual(len(written), 2)
+        for device_id in (1, 2):
+            resident = self.repository.find(device_id, "7")
+            self.assertEqual(resident.apartment, "301")
+            self.assertEqual(resident.document, "123.456.789-00")
+
+    def test_never_spills_details_onto_someone_sharing_an_identifier(self) -> None:
+        """Gravar só pelo ID poria o endereço de um no cadastro do outro (ADR 0010)."""
+        self.enrol(1, "2", "nk")
+        self.enrol(2, "2", "naldo")
+
+        self.repository.set_person_details("2", "nk", {"apartment": "301"})
+
+        self.assertEqual(self.repository.find(1, "2").apartment, "301")
+        self.assertIsNone(self.repository.find(2, "2").apartment)
+
+    def test_leaves_alone_the_fields_an_import_does_not_know(self) -> None:
+        """Uma importação que só traz o apartamento não pode apagar o documento."""
+        self.enrol(1, "7", "nk")
+        self.repository.set_person_details("7", "nk", {"document": "123.456.789-00"})
+
+        self.repository.set_person_details("7", "nk", {"apartment": "301"})
+
+        resident = self.repository.find(1, "7")
+        self.assertEqual(resident.apartment, "301")
+        self.assertEqual(resident.document, "123.456.789-00")
+
+    def test_clears_a_field_sent_as_none(self) -> None:
+        """Ausente e vazio são coisas diferentes: quem esvaziou a caixa quis esvaziar."""
+        self.enrol(1, "7", "nk")
+        self.repository.set_person_details("7", "nk", {"apartment": "301"})
+
+        self.repository.set_person_details("7", "nk", {"apartment": None})
+
+        self.assertIsNone(self.repository.find(1, "7").apartment)
+
+    def test_refuses_a_field_that_is_not_the_persons(self) -> None:
+        """Nome e foto pertencem ao equipamento; deixar passar aqui os sobrescreveria."""
+        self.enrol(1, "7", "nk")
+
+        with self.assertRaises(ValueError):
+            self.repository.set_person_details("7", "nk", {"name": "outro"})
+
+    def test_reports_nobody_written_for_an_unknown_person(self) -> None:
+        self.assertEqual(self.repository.set_person_details("7", "ninguem", {"apartment": "301"}), [])
+
+    def test_reads_the_directory_without_the_photos(self) -> None:
+        """A busca lê o cadastro inteiro a cada tecla; as imagens não podem vir junto."""
+        self.enrol(1, "7", "nk")
+        self.enrol_without_photo(2, "8", "naldo")
+
+        directory = {resident.employee_no: resident for resident in self.repository.list_directory()}
+
+        self.assertTrue(directory["7"].has_photo)
+        self.assertFalse(directory["8"].has_photo)
+
     def test_reports_no_holder_when_nobody_has_a_picture(self) -> None:
         self.enrol_without_photo(1, "2", "nk")
 

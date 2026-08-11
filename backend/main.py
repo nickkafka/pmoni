@@ -2,7 +2,9 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from app.api.interface import mount_interface
 from app.api.routes.auth import router as auth_router
+from app.api.routes.automation import router as automation_router
 from app.api.routes.system import router as system_router
 from app.api.routes.devices import router as devices_router
 from app.api.routes.residents import router as residents_router
@@ -36,16 +38,12 @@ app = FastAPI(
 
 app.include_router(system_router)
 app.include_router(auth_router)
+app.include_router(automation_router)
 app.include_router(devices_router)
 app.include_router(residents_router)
 app.include_router(snapshots_router)
 app.include_router(access_events_router)
 
-
-@app.get("/")
-async def root():
-    return {
-        "application": settings.APP_NAME,
-        "version": settings.VERSION,
-        "status": "running",
-    }
+# Last: the interface answers every path the routers above did not take. `/health`
+# already reports name, version and status, which is all the old root route said.
+mount_interface(app)

@@ -24,6 +24,9 @@ class FakeRepository(DeviceRepository):
     def list_enabled(self) -> list[Device]:
         return [device for device in self.devices if device.enabled]
 
+    def list_all(self) -> list[Device]:
+        return list(self.devices)
+
     def update(self, device: Device, encrypted_credentials: str | None) -> Device | None:
         self.devices = [device if item.id == device.id else item for item in self.devices]
         return device

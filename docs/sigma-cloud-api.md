@@ -122,6 +122,38 @@ Isso se resolve com uma consulta real: de posse do token, uma chamada em uma con
 conhecida mostra se `id` ou `commonEnroll` bate com os IDs que já temos das faciais.
 Enquanto isso não for verificado, não faz sentido escolher um dos dois no código.
 
+## Onde os dados do Sigma entram (pronto em 2026-08-11)
+
+O lado do pMoni já existe e está em uso pela consulta da portaria, mesmo sem o Sigma
+liberado. Quem escrever o importador não precisa tocar em tabela nem em modelo:
+
+```
+PATCH /residents/person
+{ "employee_no": "178", "name": "Adna Damares da Silva",
+  "apartment": "301", "block": "A", "document": "123.456.789-00" }
+```
+
+Três decisões embutidas nessa rota, que valem conhecer antes de usá-la:
+
+**Endereça pessoas, não cadastros.** O Sigma devolve moradores; o pMoni guarda uma
+linha por facial em que a pessoa está cadastrada — sete, nos equipamentos atuais. A
+rota grava nas sete de uma vez, senão a mesma pessoa responderia com apartamento em
+uma portaria e sem apartamento na outra.
+
+**Identifica por `employee_no` **e** `name`.** É a regra do ADR 0010. Gravar só pelo
+identificador espalharia o endereço de uma pessoa no cadastro de outra, nas faciais
+que reaproveitam números — o ID 2 nomeia três pessoas diferentes hoje.
+
+**Campo omitido não é campo apagado.** Uma importação que traz apartamento mas não
+traz documento preserva o documento que já existia — é o que permite rodar a
+importação parcial sem destruir o que foi preenchido à mão. Enviar o campo como
+`null` é diferente: aí ele é apagado de propósito, que é o que a edição manual faz
+quando o operador esvazia a caixa.
+
+O mapeamento a fazer, do `AccountDwellerV2DTO`: `unities[].unit` → `apartment`,
+`unities[].block` → `block`, `federalRegister` → `document`. Falta ainda resolver a
+questão em aberto abaixo — qual campo do Sigma corresponde ao `employee_no`.
+
 ## Fluxo proposto
 
 1. O operador guarda, uma vez, o token e a conta do Sigma na interface.

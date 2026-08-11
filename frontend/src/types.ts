@@ -36,8 +36,23 @@ export type Resident = {
   name: string
   apartment: string | null
   block: string | null
+  /** Mantido no pMoni até o Sigma fornecer; pertence à pessoa, não ao cadastro. */
+  document: string | null
   has_photo: boolean
   synced_at: string | null
+}
+
+/** A person as the porter's search returns them, gathered from every enrollment. */
+export type DirectoryPerson = {
+  employee_no: string
+  name: string
+  apartment: string | null
+  block: string | null
+  document: string | null
+  /** Enrollment holding the picture, which may belong to another device. */
+  photo_id: number | null
+  device_ids: number[]
+  device_names: string[]
 }
 
 export type Device = {
@@ -48,6 +63,33 @@ export type Device = {
   username: string
   model: string | null
   enabled: boolean
+}
+
+export type DeviceExport = {
+  exported_at: string
+  devices: Omit<Device, 'id'>[]
+  note: string
+}
+
+/** Equipamento do arquivo que ainda não foi cadastrado por faltar a senha. */
+export type PendingDevice = Omit<Device, 'id'>
+
+export type DeviceImportReport = {
+  created: number
+  updated: number
+  pending: PendingDevice[]
+}
+
+/** `partial` = importou, mas alguma facial não respondeu. */
+export type ImportStatus = 'ok' | 'partial' | 'failed'
+
+export type ImportAutomation = {
+  enabled: boolean
+  /** "HH:MM" na hora local da portaria. */
+  run_at: string
+  last_run_at: string | null
+  last_status: ImportStatus | null
+  last_message: string | null
 }
 
 export type SyncReport = {

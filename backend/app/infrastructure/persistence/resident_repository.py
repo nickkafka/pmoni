@@ -1,3 +1,4 @@
+from collections.abc import Mapping
 from datetime import UTC, datetime
 
 from sqlalchemy import select
@@ -6,6 +7,10 @@ from sqlalchemy.orm import Session
 from app.application.ports.resident_repository import ResidentRepository
 from app.domain.entities.resident import EnrolledPerson, Resident
 from app.infrastructure.persistence.models import ResidentRecord
+
+
+PERSON_FIELDS = frozenset({"apartment", "block", "document"})
+"""O que pertence à pessoa, e não ao equipamento que emitiu o cadastro."""
 
 
 class SqlAlchemyResidentRepository(ResidentRepository):
@@ -17,6 +22,36 @@ class SqlAlchemyResidentRepository(ResidentRepository):
             select(ResidentRecord).order_by(ResidentRecord.name, ResidentRecord.device_id)
         )
         return [self._to_entity(record) for record in records]
+
+    def list_directory(self) -> list[Resident]:
+        """Every enrollment, without the photo bytes.
+
+        ``list_all`` loads whole rows, and each row carries a picture of about a
+        hundred kilobytes. Reading the directory to answer a search would move tens
+        of megabytes per keystroke, so the columns the search reads are selected
+        explicitly and the image is left in the database.
+        """
+        rows = self._session.execute(
+            select(
+                ResidentRecord.id,
+                ResidentRecord.device_id,
+                ResidentRecord.employee_no,
+                ResidentRecord.name,
+                ResidentRecord.apartment,
+                ResidentRecord.block,
+                ResidentRecord.document,
+                ResidentRecord.photo.is_not(None).label("has_photo"),
+                ResidentRecord.synced_at,
+            ).order_by(ResidentRecord.name, ResidentRecord.id)
+        ).all()
+        return [
+            Resident(
+                id=row.id, device_id=row.device_id, employee_no=row.employee_no,
+                name=row.name, apartment=row.apartment, block=row.block,
+                has_photo=row.has_photo, synced_at=row.synced_at, document=row.document,
+            )
+            for row in rows
+        ]
 
     def find(self, device_id: int, employee_no: str) -> Resident | None:
         record = self._find(device_id, employee_no)
@@ -68,6 +103,43 @@ class SqlAlchemyResidentRepository(ResidentRepository):
         self._session.refresh(record)
         return self._to_entity(record)
 
+    def set_person_details(
+        self, employee_no: str, name: str, changes: Mapping[str, str | None]
+    ) -> list[Resident]:
+        """Record what pMoni knows about a person on every enrollment that names them.
+
+        Apartment, block and document belong to the person, not to any one piece of
+        equipment, so writing them to a single enrollment would leave the same person
+        answering differently depending on which gate they walked through.
+
+        Identifier *and* name have to match, the rule ADR 0010 settled on: writing by
+        identifier alone would spill one person's address onto another's enrollment on
+        a device that reused the number.
+
+        ``changes`` carries only the fields the caller means to write, and a ``None``
+        in it clears that field. Absent and empty have to stay different things: an
+        import that knows the apartment but not the document must not erase a document
+        typed by hand, while an operator clearing the apartment box must not be told
+        their change did nothing.
+        """
+        unknown = set(changes) - PERSON_FIELDS
+        if unknown:
+            raise ValueError(f"Campos desconhecidos: {', '.join(sorted(unknown))}.")
+        if not changes:
+            return []
+
+        records = self._session.scalars(
+            select(ResidentRecord).where(
+                ResidentRecord.employee_no == employee_no,
+                ResidentRecord.name == name,
+            )
+        ).all()
+        for record in records:
+            for field, value in changes.items():
+                setattr(record, field, value)
+        self._session.commit()
+        return [self._to_entity(record) for record in records]
+
     def drop_missing(self, device_id: int, keep: set[str]) -> int:
         stale = self._session.scalars(
             select(ResidentRecord).where(
@@ -99,4 +171,5 @@ class SqlAlchemyResidentRepository(ResidentRepository):
             id=record.id, device_id=record.device_id, employee_no=record.employee_no,
             name=record.name, apartment=record.apartment, block=record.block,
             has_photo=record.photo is not None, synced_at=record.synced_at,
+            document=record.document,
         )

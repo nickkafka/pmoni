@@ -2,6 +2,29 @@
    Escuro é o padrão; o tema claro sobrescreve por [data-theme="light"], e nenhum
    componente pode usar cor fora destes tokens (§8.1). */
 
+/* A fonte vai embutida em vez de vir do Google: a guarita pode não ter internet, e
+   ali a tela subiria com a fonte do sistema — toda a hierarquia por peso da §3
+   desmonta. Os arquivos são variáveis, então cada um cobre a faixa 100–900
+   inteira, e não uma lista de pesos. A licença está em public/fonts/OFL.txt. */
+@font-face {
+  font-family: 'Montserrat';
+  src: url('/fonts/Montserrat-Variable.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* A itálica precisa ser um arquivo de verdade: `font-synthesis: none` logo abaixo
+   proíbe o navegador de inclinar a normal, e sem isto `font-style: italic` não
+   produziria efeito nenhum. */
+@font-face {
+  font-family: 'Montserrat';
+  src: url('/fonts/Montserrat-Italic-Variable.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
 :root {
   /* Dourado — acento único */
   --gold-primary: #ffc000;
@@ -93,6 +116,22 @@
   --status-neutral: #6b7280;
 
   color-scheme: light;
+}
+
+/* Fora dos formulários nada aqui é editável, mas o Chromium desenha um cursor
+   piscando dentro do texto comum quando a navegação por cursor está ligada — ela
+   entra por F7 ou pela acessibilidade do Windows, e numa guarita ninguém vai supor
+   que foi isso. O operador vê o cursor, entende que deve digitar ali, e não
+   acontece nada. Os campos de verdade recuperam o cursor na regra seguinte. */
+:root {
+  caret-color: transparent;
+}
+
+input,
+textarea,
+select,
+[contenteditable] {
+  caret-color: auto;
 }
 
 /* Troca suave entre os temas (§4) */

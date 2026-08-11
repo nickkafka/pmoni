@@ -1,11 +1,15 @@
 import sys
-from pathlib import Path
 
 from loguru import logger
 
-LOG_PATH = Path("logs")
+from app.core.paths import data_root
 
-LOG_PATH.mkdir(exist_ok=True)
+# Anchored to the data directory rather than the working directory: the installed
+# program is started from a shortcut, and whatever directory that leaves us in is
+# not somewhere we may write.
+LOG_PATH = data_root() / "logs"
+
+LOG_PATH.mkdir(parents=True, exist_ok=True)
 
 # The Windows console runs on cp1252 and cannot encode the symbols loguru uses for
 # levels and tracebacks. Without this, every error turns into a logging failure and
@@ -24,4 +28,7 @@ logger.add(
     encoding="utf-8",
 )
 
-logger.add(sys.stdout, level="INFO")
+# The packaged program may run without a console, and then there is no stream to
+# write to. The file handler above is what matters there.
+if sys.stdout is not None:
+    logger.add(sys.stdout, level="INFO")

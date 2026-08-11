@@ -54,6 +54,9 @@ class FakeRepository(ResidentRepository):
     def list_all(self) -> list[Resident]:
         raise NotImplementedError
 
+    def list_directory(self) -> list[Resident]:
+        raise NotImplementedError
+
     def find(self, device_id: int, employee_no: str) -> Resident | None:
         raise NotImplementedError
 
@@ -80,6 +83,9 @@ class FakeRepository(ResidentRepository):
         return created
 
     def set_location(self, resident_id, *, apartment, block):
+        raise NotImplementedError
+
+    def set_person_details(self, employee_no, name, changes):
         raise NotImplementedError
 
     def drop_all(self) -> int:

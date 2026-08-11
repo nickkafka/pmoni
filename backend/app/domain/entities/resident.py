@@ -48,9 +48,33 @@ class Resident:
     block: str | None
     has_photo: bool
     synced_at: datetime | None
+    document: str | None = None
 
     def to_summary(self) -> ResidentSummary:
         return ResidentSummary(
             self.id, self.employee_no, self.name, self.apartment, self.block,
             self.id if self.has_photo else None,
         )
+
+
+@dataclass(frozen=True, slots=True)
+class DirectoryPerson:
+    """A person as the porter looks them up, gathered from every enrollment.
+
+    Someone enrolled on five devices occupies five rows, and the porter searching for
+    them wants one answer. Enrollments only count as the same person when identifier
+    *and* name match — matching on the identifier alone is what ADR 0010 corrects,
+    since separately enrolled devices reuse numbers for different people.
+
+    What pMoni keeps about a person — apartment, block, document — may have been
+    recorded against any one of those enrollments, so the first value found for each
+    field wins rather than the values of a single row.
+    """
+
+    employee_no: str
+    name: str
+    apartment: str | None
+    block: str | None
+    document: str | None
+    photo_id: int | None
+    device_ids: tuple[int, ...]

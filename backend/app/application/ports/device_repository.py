@@ -17,6 +17,11 @@ class DeviceRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def list_all(self) -> list[Device]:
+        """Every device, disabled ones included."""
+        raise NotImplementedError
+
+    @abstractmethod
     def update(self, device: Device, encrypted_credentials: str | None) -> Device | None:
         """Persist the editable fields, keeping the stored credential when absent."""
         raise NotImplementedError

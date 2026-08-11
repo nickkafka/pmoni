@@ -5,3 +5,6 @@ backend/__pycache__/
 backend/logs/
 backend/pmoni.db
 backend/.env
+backend/device-credentials.key
+backend/build/
+backend/dist/

@@ -2,12 +2,15 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ChangeEvent, Dispatch, FormEvent, MouseEvent, SetStateAction } from 'react'
 import { Link } from 'react-router-dom'
 import { getJson, photoUrl, remove, sendJson } from './api'
+import { DeviceTransferButtons, DeviceTransferResult } from './DeviceTransfer'
+import { ImportAutomationPanel } from './ImportAutomation'
 import { ThemeToggle } from './ThemeToggle'
+import { useDeviceTransfer } from './useDeviceTransfer'
 import { useAuth } from './authContext'
 import type { Device, Resident, SyncReport } from './types'
 import './AdminScreen.css'
 
-type Draft = { apartment: string; block: string }
+type Draft = { apartment: string; block: string; document: string }
 
 function normalize(text: string): string {
   return text.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase()
@@ -29,6 +32,7 @@ type Person = {
   name: string
   apartment: string | null
   block: string | null
+  document: string | null
   enrollments: Resident[]
 }
 
@@ -42,6 +46,7 @@ function groupByPerson(residents: Resident[]): Person[] {
       person.enrollments.push(resident)
       person.apartment ??= resident.apartment
       person.block ??= resident.block
+      person.document ??= resident.document
     } else {
       people.set(key, {
         key,
@@ -49,6 +54,7 @@ function groupByPerson(residents: Resident[]): Person[] {
         name: resident.name,
         apartment: resident.apartment,
         block: resident.block,
+        document: resident.document,
         enrollments: [resident],
       })
     }
@@ -98,6 +104,49 @@ function ResidentPhoto({ person }: { person: Person }) {
   )
 }
 
+/**
+ * Which gates a person is enrolled on, behind an icon.
+ *
+ * Spelling the list out is what the column used to do, and with everyone enrolled on
+ * every gate it filled the table with the same seven names on every row, pushing the
+ * apartment — the reason to look — off to the side.
+ */
+function Enrolments({ person, deviceNames }: { person: Person; deviceNames: Map<number, string> }) {
+  const names = person.enrollments.map(
+    (enrollment) => deviceNames.get(enrollment.device_id) ?? `#${enrollment.device_id}`,
+  )
+  return (
+    <span className="faces" tabIndex={0} role="note" aria-label={`Faciais: ${names.join(', ')}`}>
+      <FaceIcon />
+      <span className="faces__count">{names.length}</span>
+      <span className="faces__bubble">
+        <strong className="hint__title">Cadastrado em</strong>
+        <ul className="faces__list">
+          {names.map((name) => (
+            <li key={name}>{name}</li>
+          ))}
+        </ul>
+      </span>
+    </span>
+  )
+}
+
+function FaceIcon() {
+  return (
+    <svg className="faces__icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d="M4 9V6a2 2 0 0 1 2-2h3M15 4h3a2 2 0 0 1 2 2v3M20 15v3a2 2 0 0 1-2 2h-3M9 20H6a2 2 0 0 1-2-2v-3"
+        fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"
+      />
+      <circle cx="12" cy="11" r="2.2" fill="none" stroke="currentColor" strokeWidth="1.6" />
+      <path
+        d="M8.4 16.4a4.2 4.2 0 0 1 7.2 0"
+        fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"
+      />
+    </svg>
+  )
+}
+
 function ResidentRow({
   person,
   deviceNames,
@@ -112,24 +161,26 @@ function ResidentRow({
   const [error, setError] = useState<string | null>(null)
 
   const startEditing = () =>
-    setDraft({ apartment: person.apartment ?? '', block: person.block ?? '' })
+    setDraft({
+      apartment: person.apartment ?? '',
+      block: person.block ?? '',
+      document: person.document ?? '',
+    })
 
   const save = async () => {
     if (!draft) return
     setSaving(true)
     setError(null)
-    const location = {
-      apartment: draft.apartment.trim() || null,
-      block: draft.block.trim() || null,
-    }
     try {
-      // The location belongs to the person, so it is written to every enrollment
-      // that names them.
-      const saved = await Promise.all(
-        person.enrollments.map((enrollment) =>
-          sendJson<Resident>(`/residents/${enrollment.id}`, 'PATCH', location),
-        ),
-      )
+      // Apartment, block and document belong to the person, so one call writes them
+      // to every enrollment that names them — the same door the Sigma import uses.
+      const saved = await sendJson<Resident[]>('/residents/person', 'PATCH', {
+        employee_no: person.employee_no,
+        name: person.name,
+        apartment: draft.apartment.trim() || null,
+        block: draft.block.trim() || null,
+        document: draft.document.trim() || null,
+      })
       onSaved(saved)
       setDraft(null)
     } catch (failure) {
@@ -139,6 +190,8 @@ function ResidentRow({
     }
   }
 
+  const onEnter = (event: { key: string }) => event.key === 'Enter' && save()
+
   return (
     <tr className={person.apartment ? undefined : 'row--pending'}>
       <td>
@@ -147,9 +200,7 @@ function ResidentRow({
       <td className="cell--name">{person.name}</td>
       <td className="cell--id">{person.employee_no}</td>
       <td className="cell--devices">
-        {person.enrollments
-          .map((enrollment) => deviceNames.get(enrollment.device_id) ?? `#${enrollment.device_id}`)
-          .join(', ')}
+        <Enrolments person={person} deviceNames={deviceNames} />
       </td>
       {draft ? (
         <>
@@ -160,7 +211,7 @@ function ResidentRow({
               autoFocus
               placeholder="301"
               onChange={(event) => setDraft({ ...draft, apartment: event.target.value })}
-              onKeyDown={(event) => event.key === 'Enter' && save()}
+              onKeyDown={onEnter}
             />
           </td>
           <td>
@@ -169,7 +220,16 @@ function ResidentRow({
               value={draft.block}
               placeholder="A"
               onChange={(event) => setDraft({ ...draft, block: event.target.value })}
-              onKeyDown={(event) => event.key === 'Enter' && save()}
+              onKeyDown={onEnter}
+            />
+          </td>
+          <td>
+            <input
+              className="field field--document"
+              value={draft.document}
+              placeholder="000.000.000-00"
+              onChange={(event) => setDraft({ ...draft, document: event.target.value })}
+              onKeyDown={onEnter}
             />
           </td>
           <td className="cell--actions">
@@ -189,6 +249,9 @@ function ResidentRow({
           </td>
           <td className={person.block ? undefined : 'cell--missing'}>
             {person.block ?? '—'}
+          </td>
+          <td className={person.document ? 'cell--document' : 'cell--missing'}>
+            {person.document ?? '—'}
           </td>
           <td className="cell--actions">
             <button type="button" className="button" onClick={startEditing}>
@@ -333,6 +396,12 @@ function Devices({
   const [form, setForm] = useState<FormTarget | null>(null)
   const addingNew = form?.device === null
 
+  // Importar altera a lista de equipamentos e o cadastro que depende dela.
+  const transfer = useDeviceTransfer(() => {
+    getJson<Device[]>('/devices').then(setDevices).catch(() => undefined)
+    onSynced()
+  })
+
   const saved = (device: Device) => {
     setDevices((current) =>
       current.some((item) => item.id === device.id)
@@ -405,6 +474,7 @@ function Devices({
         >
           {addingNew ? 'Fechar' : 'Adicionar facial'}
         </button>
+        <DeviceTransferButtons transfer={transfer} />
       </h2>
       {form && (
         <DeviceForm
@@ -450,6 +520,7 @@ function Devices({
       </ul>
       {message && <p className="panel__ok">{message}</p>}
       {error && <p className="panel__error">{error}</p>}
+      <DeviceTransferResult transfer={transfer} />
     </section>
   )
 }
@@ -532,6 +603,8 @@ export default function AdminScreen() {
 
       <Devices devices={devices} setDevices={setDevices} onSynced={load} />
 
+      <ImportAutomationPanel />
+
       <section className="panel">
         <h2 className="panel__title">
           Moradores
@@ -580,6 +653,7 @@ export default function AdminScreen() {
                   <th>Faciais</th>
                   <th>Apartamento</th>
                   <th>Bloco</th>
+                  <th>Documento</th>
                   <th />
                 </tr>
               </thead>
