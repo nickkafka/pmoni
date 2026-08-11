@@ -17,6 +17,13 @@ No diretório `backend`, instale as dependências:
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
 
+A aplicação sobe sem configuração nenhuma. Para ajustar o que muda por instalação —
+senha da administração, porta — copie o modelo e edite:
+
+```powershell
+copy .env.example .env
+```
+
 As migrations são aplicadas na inicialização, então não é preciso rodar `alembic
 upgrade head` à mão. O mesmo vale para a `DEVICE_CREDENTIALS_KEY`, que protege as
 senhas dos equipamentos: se não houver uma no `.env`, a aplicação gera uma no
