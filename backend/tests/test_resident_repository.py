@@ -1,4 +1,4 @@
-import unittest
+﻿import unittest
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
@@ -49,14 +49,14 @@ class SqlAlchemyResidentRepositoryTests(unittest.TestCase):
         self.enrol(2, "7", "nk")
 
         written = self.repository.set_person_details(
-            "7", "nk", {"apartment": "301", "document": "123.456.789-00"}
+            "7", "nk", {"apartment": "301", "cpf": "123.456.789-00"}
         )
 
         self.assertEqual(len(written), 2)
         for device_id in (1, 2):
             resident = self.repository.find(device_id, "7")
             self.assertEqual(resident.apartment, "301")
-            self.assertEqual(resident.document, "123.456.789-00")
+            self.assertEqual(resident.cpf, "123.456.789-00")
 
     def test_never_spills_details_onto_someone_sharing_an_identifier(self) -> None:
         """Gravar só pelo ID poria o endereço de um no cadastro do outro (ADR 0010)."""
@@ -71,13 +71,13 @@ class SqlAlchemyResidentRepositoryTests(unittest.TestCase):
     def test_leaves_alone_the_fields_an_import_does_not_know(self) -> None:
         """Uma importação que só traz o apartamento não pode apagar o documento."""
         self.enrol(1, "7", "nk")
-        self.repository.set_person_details("7", "nk", {"document": "123.456.789-00"})
+        self.repository.set_person_details("7", "nk", {"cpf": "123.456.789-00"})
 
         self.repository.set_person_details("7", "nk", {"apartment": "301"})
 
         resident = self.repository.find(1, "7")
         self.assertEqual(resident.apartment, "301")
-        self.assertEqual(resident.document, "123.456.789-00")
+        self.assertEqual(resident.cpf, "123.456.789-00")
 
     def test_clears_a_field_sent_as_none(self) -> None:
         """Ausente e vazio são coisas diferentes: quem esvaziou a caixa quis esvaziar."""

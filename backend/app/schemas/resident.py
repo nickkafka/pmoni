@@ -12,7 +12,8 @@ class ResidentRead(BaseModel):
     name: str
     apartment: str | None
     block: str | None
-    document: str | None
+    cpf: str | None
+    rg: str | None
     has_photo: bool
     synced_at: datetime | None
 
@@ -38,7 +39,8 @@ class DirectoryPersonRead(BaseModel):
     name: str
     apartment: str | None
     block: str | None
-    document: str | None
+    cpf: str | None
+    rg: str | None
     photo_id: int | None
     device_ids: list[int]
     device_names: list[str]
@@ -59,7 +61,8 @@ class PersonDetailsUpdate(BaseModel):
     name: str = Field(max_length=128)
     apartment: str | None = Field(default=None, max_length=32)
     block: str | None = Field(default=None, max_length=32)
-    document: str | None = Field(default=None, max_length=32)
+    cpf: str | None = Field(default=None, max_length=32)
+    rg: str | None = Field(default=None, max_length=32)
 
 
 class ResidentPurgeRead(BaseModel):

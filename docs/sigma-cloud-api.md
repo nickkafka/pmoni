@@ -100,6 +100,34 @@ unidades. Vale citar as rotas exatas: `GET /v1/accounts/{accountId}/dwellers` na
 principal e `GET /v1/accessControl/accounts/{accountId}/people`, `/units` e `/blocks`
 na API de controle de acesso.
 
+## O que foi medido com a permissão liberada (2026-08-14)
+
+A Segware liberou a leitura, e a integração está implementada. O que a medição contra
+a base real mostrou:
+
+**`commonEnroll` é o campo que casa com a facial** — 49 de 49 identificadores. O `id`
+não casa com nenhum. Isso encerra a questão em aberto que estava aqui embaixo.
+
+**Os documentos são dois campos:** `federalRegister` é o CPF e `nationalId` é o RG.
+Ambos são guardados, e a busca da portaria acha por qualquer um dos dois.
+
+**Rotas úteis:** `/v1/accounts/{id}/dwellers` devolve a lista inteira numa chamada;
+`/v5` devolve o mesmo paginado. A API de controle de acesso autoriza mas responde
+vazia. A v4 exige parâmetros e a `/search` responde 500 sem paginação.
+
+**O nome exige tolerância.** Casar exato deixou 9 de 51 pessoas de fora, por duas
+razões distintas: o Sigma escreve acentos que a facial não tem ("Andre Lourenço" e
+"Andre Lourenco"), e a facial **corta o nome em 32 caracteres** ("Peterson Henrique
+Freitas do Nascimento" vira "...do Nas"). Tratadas as duas, foram para 49 de 51.
+
+Isso não afrouxa o ADR 0010: o prefixo só é aceito quando o nome local está
+exatamente no limite de 32, e havendo dois cadastros candidatos a importação se
+recusa a gravar.
+
+**Unidades nesta conta são departamentos.** A conta 583775 é o próprio Grupo Prever,
+e `unities` traz `unit="1"`, `block="TI"` — setor, não apartamento. Numa conta de
+condomínio o formato pode ser outro; vale conferir antes de assumir o mapeamento.
+
 ## A questão em aberto que decide a viabilidade
 
 **Qual campo do Sigma corresponde ao ID que a facial informa no evento?**

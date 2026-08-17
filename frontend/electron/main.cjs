@@ -8,8 +8,9 @@
  * `window.location.host` — under `file://` there is no host and neither would work.
  */
 
-const { app, BrowserWindow, dialog, shell } = require('electron')
+const { app, BrowserWindow, dialog, session, shell } = require('electron')
 const { spawn } = require('node:child_process')
+const fs = require('node:fs')
 const net = require('node:net')
 const os = require('node:os')
 const path = require('node:path')
@@ -135,6 +136,41 @@ function createWindow(port) {
   return window
 }
 
+/**
+ * Throw away what the previous version left cached, once, after an update.
+ *
+ * The backend now forbids caching the interface, which settles this going forward.
+ * It does nothing for a machine that already holds an entry stored under the old
+ * rules, though: Chromium may reuse it without asking, and the window opens the
+ * previous version while the installed program is the new one. That happened, and it
+ * looks exactly like an update that did not take.
+ *
+ * Only on a version change, so ordinary restarts keep their cache. A failure here is
+ * not worth refusing to open over — the worst case is the stale window we are already
+ * trying to avoid, and the log says so.
+ */
+async function dropCacheOfPreviousVersion() {
+  const stamp = path.join(app.getPath('userData'), 'interface-version')
+  const current = app.getVersion()
+
+  let previous = null
+  try {
+    previous = fs.readFileSync(stamp, 'utf8').trim()
+  } catch {
+    // Nunca gravado: primeira execução, ou a versão anterior é anterior a isto.
+  }
+  if (previous === current) return
+
+  try {
+    await session.defaultSession.clearCache()
+    fs.mkdirSync(path.dirname(stamp), { recursive: true })
+    fs.writeFileSync(stamp, current)
+    console.log(`Cache da interface limpo: ${previous ?? 'sem registro'} -> ${current}`)
+  } catch (failure) {
+    console.error('Não foi possível limpar o cache da interface:', failure)
+  }
+}
+
 function stopBackend() {
   if (backend && backend.exitCode === null) {
     backend.kill()
@@ -156,6 +192,8 @@ if (!app.requestSingleInstanceLock()) {
   })
 
   app.whenReady().then(async () => {
+    await dropCacheOfPreviousVersion()
+
     const port = await choosePort()
     startBackend(port)
 

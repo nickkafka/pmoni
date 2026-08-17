@@ -52,7 +52,8 @@ def search_residents(
             name=person.name,
             apartment=person.apartment,
             block=person.block,
-            document=person.document,
+            cpf=person.cpf,
+            rg=person.rg,
             photo_id=person.photo_id,
             device_ids=list(person.device_ids),
             # Um cadastro pode ter sobrado de um equipamento removido; a busca segue

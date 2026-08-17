@@ -267,12 +267,30 @@
   color: var(--text-secondary);
 }
 
+.found__documents {
+  margin: 4px 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 14px;
+}
+
 .found__document {
-  margin: 3px 0 0;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
   font-size: 12px;
   font-weight: 400;
   font-variant-numeric: tabular-nums;
   color: var(--text-secondary);
+}
+
+/* O rótulo é o que permite conferir com o documento na mão da pessoa: CPF e RG
+   são ambos só dígitos, e sem o nome não dá para saber qual está na tela. */
+.found__document-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--label-caps);
 }
 
 .found__devices {

@@ -36,10 +36,35 @@ export type Resident = {
   name: string
   apartment: string | null
   block: string | null
-  /** Mantido no pMoni até o Sigma fornecer; pertence à pessoa, não ao cadastro. */
-  document: string | null
+  /** Vêm do Sigma, ou são digitados para quem o Sigma não conhece. */
+  cpf: string | null
+  rg: string | null
   has_photo: boolean
   synced_at: string | null
+}
+
+export type SigmaIntegration = {
+  /** Há um token guardado. O valor dele nunca chega até aqui. */
+  configured: boolean
+  account_id: number | null
+  last_import_at: string | null
+  last_status: ImportStatus | null
+  last_message: string | null
+}
+
+export type SigmaAccount = {
+  id: number
+  name: string | null
+  code: string | null
+}
+
+export type SigmaImportResult = {
+  status: ImportStatus
+  message: string
+  read: number
+  updated: number
+  /** Estão no Sigma e não casaram com nenhuma facial. */
+  unmatched: string[]
 }
 
 /** A person as the porter's search returns them, gathered from every enrollment. */
@@ -48,7 +73,8 @@ export type DirectoryPerson = {
   name: string
   apartment: string | null
   block: string | null
-  document: string | null
+  cpf: string | null
+  rg: string | null
   /** Enrollment holding the picture, which may belong to another device. */
   photo_id: number | null
   device_ids: number[]

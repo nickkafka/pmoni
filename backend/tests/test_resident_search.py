@@ -1,4 +1,4 @@
-import unittest
+﻿import unittest
 
 from app.application.services.resident_search import group_people, search
 from app.domain.entities.resident import Resident
@@ -12,13 +12,14 @@ def enrollment(
     *,
     apartment: str | None = None,
     block: str | None = None,
-    document: str | None = None,
+    cpf: str | None = None,
+    rg: str | None = None,
     has_photo: bool = True,
 ) -> Resident:
     return Resident(
         id=resident_id, device_id=device_id, employee_no=employee_no, name=name,
         apartment=apartment, block=block, has_photo=has_photo, synced_at=None,
-        document=document,
+        cpf=cpf, rg=rg,
     )
 
 
@@ -43,14 +44,16 @@ class GroupPeopleTests(unittest.TestCase):
         self.assertEqual({person.name for person in people}, {"nk", "naldo"})
 
     def test_gathers_what_was_recorded_on_any_enrollment(self) -> None:
-        """Apartamento e documento podem ter sido informados em cadastros diferentes."""
+        """Apartamento e documentos podem ter sido informados em cadastros diferentes."""
         people = group_people([
             enrollment(1, 1, "7", "Adna", apartment="301"),
-            enrollment(2, 2, "7", "Adna", document="123.456.789-00"),
+            enrollment(2, 2, "7", "Adna", cpf="123.456.789-00"),
+            enrollment(3, 3, "7", "Adna", rg="53.007.288-9"),
         ])
 
         self.assertEqual(people[0].apartment, "301")
-        self.assertEqual(people[0].document, "123.456.789-00")
+        self.assertEqual(people[0].cpf, "123.456.789-00")
+        self.assertEqual(people[0].rg, "53.007.288-9")
 
     def test_borrows_the_picture_from_an_enrollment_that_has_one(self) -> None:
         people = group_people([
@@ -69,9 +72,9 @@ class GroupPeopleTests(unittest.TestCase):
 class SearchTests(unittest.TestCase):
     def setUp(self) -> None:
         self.directory = [
-            enrollment(1, 1, "7", "João da Silva", apartment="301", document="123.456.789-00"),
+            enrollment(1, 1, "7", "João da Silva", apartment="301", cpf="123.456.789-00"),
             enrollment(2, 2, "7", "João da Silva", apartment="301"),
-            enrollment(3, 1, "8", "Maria Antônia Souza", apartment="42", document="98765432100"),
+            enrollment(3, 1, "8", "Maria Antônia Souza", apartment="42", cpf="98765432100"),
             enrollment(4, 1, "9", "Pedro Henrique", apartment="1301"),
         ]
 
@@ -151,7 +154,7 @@ class LocationSearchTests(unittest.TestCase):
             enrollment(3, 1, "3", "Carla", apartment="1204", block="B"),
             enrollment(4, 1, "4", "Diego", apartment="13", block="B"),
             # Documento contendo "12", para provar que ele não entra nesta busca.
-            enrollment(5, 1, "5", "Elza", apartment="900", document="12345678900"),
+            enrollment(5, 1, "5", "Elza", apartment="900", cpf="12345678900"),
         ]
 
     def names(self, query: str) -> list[str]:

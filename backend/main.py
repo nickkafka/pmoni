@@ -8,6 +8,7 @@ from app.api.routes.automation import router as automation_router
 from app.api.routes.system import router as system_router
 from app.api.routes.devices import router as devices_router
 from app.api.routes.residents import router as residents_router
+from app.api.routes.sigma import router as sigma_router
 from app.api.routes.snapshots import router as snapshots_router
 from app.core.config import settings
 from app.core.logger import logger
@@ -41,6 +42,7 @@ app.include_router(auth_router)
 app.include_router(automation_router)
 app.include_router(devices_router)
 app.include_router(residents_router)
+app.include_router(sigma_router)
 app.include_router(snapshots_router)
 app.include_router(access_events_router)
 

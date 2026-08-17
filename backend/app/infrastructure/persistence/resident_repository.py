@@ -9,7 +9,7 @@ from app.domain.entities.resident import EnrolledPerson, Resident
 from app.infrastructure.persistence.models import ResidentRecord
 
 
-PERSON_FIELDS = frozenset({"apartment", "block", "document"})
+PERSON_FIELDS = frozenset({"apartment", "block", "cpf", "rg"})
 """O que pertence à pessoa, e não ao equipamento que emitiu o cadastro."""
 
 
@@ -39,7 +39,8 @@ class SqlAlchemyResidentRepository(ResidentRepository):
                 ResidentRecord.name,
                 ResidentRecord.apartment,
                 ResidentRecord.block,
-                ResidentRecord.document,
+                ResidentRecord.cpf,
+                ResidentRecord.rg,
                 ResidentRecord.photo.is_not(None).label("has_photo"),
                 ResidentRecord.synced_at,
             ).order_by(ResidentRecord.name, ResidentRecord.id)
@@ -48,7 +49,8 @@ class SqlAlchemyResidentRepository(ResidentRepository):
             Resident(
                 id=row.id, device_id=row.device_id, employee_no=row.employee_no,
                 name=row.name, apartment=row.apartment, block=row.block,
-                has_photo=row.has_photo, synced_at=row.synced_at, document=row.document,
+                has_photo=row.has_photo, synced_at=row.synced_at,
+                cpf=row.cpf, rg=row.rg,
             )
             for row in rows
         ]
@@ -171,5 +173,5 @@ class SqlAlchemyResidentRepository(ResidentRepository):
             id=record.id, device_id=record.device_id, employee_no=record.employee_no,
             name=record.name, apartment=record.apartment, block=record.block,
             has_photo=record.photo is not None, synced_at=record.synced_at,
-            document=record.document,
+            cpf=record.cpf, rg=record.rg,
         )

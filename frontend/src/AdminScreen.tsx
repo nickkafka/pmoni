@@ -4,13 +4,14 @@ import { Link } from 'react-router-dom'
 import { getJson, photoUrl, remove, sendJson } from './api'
 import { DeviceTransferButtons, DeviceTransferResult } from './DeviceTransfer'
 import { ImportAutomationPanel } from './ImportAutomation'
+import { SigmaPanel } from './SigmaPanel'
 import { ThemeToggle } from './ThemeToggle'
 import { useDeviceTransfer } from './useDeviceTransfer'
 import { useAuth } from './authContext'
 import type { Device, Resident, SyncReport } from './types'
 import './AdminScreen.css'
 
-type Draft = { apartment: string; block: string; document: string }
+type Draft = { apartment: string; block: string; cpf: string; rg: string }
 
 function normalize(text: string): string {
   return text.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase()
@@ -32,7 +33,8 @@ type Person = {
   name: string
   apartment: string | null
   block: string | null
-  document: string | null
+  cpf: string | null
+  rg: string | null
   enrollments: Resident[]
 }
 
@@ -46,7 +48,8 @@ function groupByPerson(residents: Resident[]): Person[] {
       person.enrollments.push(resident)
       person.apartment ??= resident.apartment
       person.block ??= resident.block
-      person.document ??= resident.document
+      person.cpf ??= resident.cpf
+      person.rg ??= resident.rg
     } else {
       people.set(key, {
         key,
@@ -54,7 +57,8 @@ function groupByPerson(residents: Resident[]): Person[] {
         name: resident.name,
         apartment: resident.apartment,
         block: resident.block,
-        document: resident.document,
+        cpf: resident.cpf,
+        rg: resident.rg,
         enrollments: [resident],
       })
     }
@@ -164,7 +168,8 @@ function ResidentRow({
     setDraft({
       apartment: person.apartment ?? '',
       block: person.block ?? '',
-      document: person.document ?? '',
+      cpf: person.cpf ?? '',
+      rg: person.rg ?? '',
     })
 
   const save = async () => {
@@ -179,7 +184,8 @@ function ResidentRow({
         name: person.name,
         apartment: draft.apartment.trim() || null,
         block: draft.block.trim() || null,
-        document: draft.document.trim() || null,
+        cpf: draft.cpf.trim() || null,
+        rg: draft.rg.trim() || null,
       })
       onSaved(saved)
       setDraft(null)
@@ -226,9 +232,18 @@ function ResidentRow({
           <td>
             <input
               className="field field--document"
-              value={draft.document}
+              value={draft.cpf}
               placeholder="000.000.000-00"
-              onChange={(event) => setDraft({ ...draft, document: event.target.value })}
+              onChange={(event) => setDraft({ ...draft, cpf: event.target.value })}
+              onKeyDown={onEnter}
+            />
+          </td>
+          <td>
+            <input
+              className="field field--document"
+              value={draft.rg}
+              placeholder="00.000.000-0"
+              onChange={(event) => setDraft({ ...draft, rg: event.target.value })}
               onKeyDown={onEnter}
             />
           </td>
@@ -250,8 +265,11 @@ function ResidentRow({
           <td className={person.block ? undefined : 'cell--missing'}>
             {person.block ?? '—'}
           </td>
-          <td className={person.document ? 'cell--document' : 'cell--missing'}>
-            {person.document ?? '—'}
+          <td className={person.cpf ? 'cell--document' : 'cell--missing'}>
+            {person.cpf ?? '—'}
+          </td>
+          <td className={person.rg ? 'cell--document' : 'cell--missing'}>
+            {person.rg ?? '—'}
           </td>
           <td className="cell--actions">
             <button type="button" className="button" onClick={startEditing}>
@@ -605,6 +623,8 @@ export default function AdminScreen() {
 
       <ImportAutomationPanel />
 
+      <SigmaPanel onImported={load} />
+
       <section className="panel">
         <h2 className="panel__title">
           Moradores
@@ -653,7 +673,8 @@ export default function AdminScreen() {
                   <th>Faciais</th>
                   <th>Apartamento</th>
                   <th>Bloco</th>
-                  <th>Documento</th>
+                  <th>CPF</th>
+                  <th>RG</th>
                   <th />
                 </tr>
               </thead>

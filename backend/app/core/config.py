@@ -34,7 +34,7 @@ def load_or_create_credentials_key() -> str:
 
 class Settings(BaseSettings):
     APP_NAME: str = "pMoni"
-    VERSION: str = "0.1.0"
+    VERSION: str = "0.2.1"
 
     DATABASE_URL: str = DEFAULT_DATABASE_URL
     DEVICE_CREDENTIALS_KEY: str | None = None

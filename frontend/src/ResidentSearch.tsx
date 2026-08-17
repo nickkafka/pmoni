@@ -110,6 +110,33 @@ function PersonPhoto({ person }: { person: DirectoryPerson }) {
   )
 }
 
+/**
+ * The documents, each said out loud.
+ *
+ * The porter is comparing what is on the screen with what the person is holding, and
+ * a bare number gives no way to tell which document it is — a CPF and an RG both
+ * read as digits. Naming them is the difference between confirming an identity and
+ * guessing at one.
+ */
+function Documents({ person }: { person: DirectoryPerson }) {
+  const documentos = [
+    { rotulo: 'CPF', valor: person.cpf },
+    { rotulo: 'RG', valor: person.rg },
+  ].filter((documento) => documento.valor)
+
+  if (documentos.length === 0) return null
+  return (
+    <p className="found__documents">
+      {documentos.map((documento) => (
+        <span className="found__document" key={documento.rotulo}>
+          <span className="found__document-label">{documento.rotulo}</span>
+          {documento.valor}
+        </span>
+      ))}
+    </p>
+  )
+}
+
 function locationOf(person: DirectoryPerson): string | null {
   if (!person.apartment) return null
   return person.block ? `Apto ${person.apartment} · Bloco ${person.block}` : `Apto ${person.apartment}`
@@ -169,7 +196,7 @@ export function SearchResults({ search }: { search: ResidentSearchControls }) {
                 ) : (
                   <p className="found__location found__location--missing">Apartamento não cadastrado</p>
                 )}
-                {person.document && <p className="found__document">{person.document}</p>}
+                <Documents person={person} />
                 <p className="found__devices" title={person.device_names.join(' · ')}>
                   {enrolmentSummary(person)}
                 </p>

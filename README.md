@@ -133,7 +133,21 @@ exportado pode ser reimportado como está.
 Quem é cadastrado numa facial durante o dia só aparecia no pMoni quando alguém
 lembrava de apertar sincronizar — e o porteiro que procurasse essa pessoa não a
 encontrava. Em **Administração → Importação automática** define-se um horário, e a
-rotina passa a importar os cadastros de todas as faciais habilitadas todo dia.
+rotina passa a rodar todo dia, em duas etapas nesta ordem:
+
+1. **As faciais**, que trazem identificador, nome e foto de quem foi cadastrado.
+2. **O Sigma**, que preenche apartamento, bloco, CPF e RG dessas pessoas.
+
+A ordem não é opcional: quem foi cadastrado hoje só existe no pMoni depois que os
+equipamentos são lidos, e consultar o Sigma antes disso não encontraria a quem
+atribuir o apartamento — a pessoa ficaria incompleta até a noite seguinte.
+
+O Sigma só entra se estiver configurado. Sem token ou sem conta, a etapa é pulada em
+silêncio: quase todo o valor da rotina é a sincronização das faciais, e acusar erro
+toda noite por uma integração que ninguém configurou ensina o operador a ignorar o
+aviso. Quando ele está configurado e falha, o resultado mostra as duas etapas e vale
+o pior dos dois estados — faciais boas e Sigma quebrado ainda deixa gente sem
+apartamento.
 
 O painel mostra quando foi a última importação e como ela terminou. São três
 desfechos, e a diferença entre eles importa:
@@ -164,7 +178,7 @@ Para distribuir o pMoni a um computador que não tem Python nem Node instalados:
 .\installer\build.ps1
 ```
 
-O resultado é `frontend\release\pMoni Setup 0.1.0.exe`, um instalador que não pede
+O resultado é `frontend\release\pMoni Setup 0.2.0.exe`, um instalador que não pede
 direitos de administrador. Ele instala por usuário, cria o atalho e é a única coisa
 que precisa ser copiada para a máquina de destino.
 

@@ -48,7 +48,8 @@ class Resident:
     block: str | None
     has_photo: bool
     synced_at: datetime | None
-    document: str | None = None
+    cpf: str | None = None
+    rg: str | None = None
 
     def to_summary(self) -> ResidentSummary:
         return ResidentSummary(
@@ -66,7 +67,7 @@ class DirectoryPerson:
     *and* name match — matching on the identifier alone is what ADR 0010 corrects,
     since separately enrolled devices reuse numbers for different people.
 
-    What pMoni keeps about a person — apartment, block, document — may have been
+    What pMoni keeps about a person — apartment, block, CPF, RG — may have been
     recorded against any one of those enrollments, so the first value found for each
     field wins rather than the values of a single row.
     """
@@ -75,6 +76,7 @@ class DirectoryPerson:
     name: str
     apartment: str | None
     block: str | None
-    document: str | None
+    cpf: str | None
+    rg: str | None
     photo_id: int | None
     device_ids: tuple[int, ...]

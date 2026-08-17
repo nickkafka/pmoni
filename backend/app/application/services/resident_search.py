@@ -59,14 +59,16 @@ def group_people(enrollments: Iterable[Resident]) -> list[DirectoryPerson]:
                 "name": enrollment.name,
                 "apartment": None,
                 "block": None,
-                "document": None,
+                "cpf": None,
+                "rg": None,
                 "photo_id": None,
                 "device_ids": [],
             }
             people[key] = person
         person["apartment"] = person["apartment"] or enrollment.apartment
         person["block"] = person["block"] or enrollment.block
-        person["document"] = person["document"] or enrollment.document
+        person["cpf"] = person["cpf"] or enrollment.cpf
+        person["rg"] = person["rg"] or enrollment.rg
         # Stable across calls, so the same face keeps showing up for the same person.
         if enrollment.has_photo and person["photo_id"] is None:
             person["photo_id"] = enrollment.id
@@ -78,7 +80,8 @@ def group_people(enrollments: Iterable[Resident]) -> list[DirectoryPerson]:
             name=person["name"],
             apartment=person["apartment"],
             block=person["block"],
-            document=person["document"],
+            cpf=person["cpf"],
+            rg=person["rg"],
             photo_id=person["photo_id"],
             device_ids=tuple(sorted(set(person["device_ids"]))),
         )
@@ -107,7 +110,9 @@ def _rank(person: DirectoryPerson, folded_query: str, query_digits: str) -> int 
         return 2
 
     if query_digits:
-        if query_digits in digits_of(person.document):
+        # Qualquer um dos dois documentos serve: o porteiro lê o que a pessoa tem na
+        # mão, e não escolhe qual ela vai apresentar.
+        if any(query_digits in digits_of(documento) for documento in (person.cpf, person.rg)):
             return 3
         if apartment.startswith(fold(query_digits)):
             return 4

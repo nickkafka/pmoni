@@ -6,12 +6,18 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.application.services.daily_import import DailyImportScheduler
+from app.core.config import settings
 from app.database.database import Base
 from app.domain.entities.automation import ImportStatus
 from app.domain.entities.resident import EnrolledPerson
 from app.infrastructure.persistence.automation_repository import SqlAlchemyAutomationRepository
+from app.domain.entities.sigma import SigmaDweller
 from app.infrastructure.persistence.device_repository import SqlAlchemyDeviceRepository
 from app.infrastructure.persistence.models import DeviceRecord
+from app.infrastructure.persistence.resident_repository import SqlAlchemyResidentRepository
+from app.infrastructure.persistence.sigma_repository import SqlAlchemySigmaRepository
+from app.infrastructure.security import FernetCredentialCipher
+from app.sigma.client import SigmaClient, SigmaUnavailable
 
 
 class FakeDirectory:
@@ -159,6 +165,105 @@ class DailyImportTests(unittest.IsolatedAsyncioTestCase):
         automation = self.stored()
         self.assertTrue(automation.enabled)
         self.assertEqual(automation.run_at, time(4, 30))
+
+
+class SigmaStageTests(unittest.IsolatedAsyncioTestCase):
+    """A segunda etapa da rotina: buscar no Sigma o que as faciais não sabem."""
+
+    def setUp(self) -> None:
+        self.engine = create_engine("sqlite://")
+        Base.metadata.create_all(self.engine)
+        self.sessions = sessionmaker(bind=self.engine)
+        self.session = Session(self.engine)
+        self.addCleanup(self.session.close)
+        self.sigma = SqlAlchemySigmaRepository(self.session)
+        # A mesma chave que o serviço usa para decifrar: cifrar com outra faria o
+        # teste passar por um caminho de erro em vez do que ele quer exercitar.
+        self.cipher = FernetCredentialCipher(settings.DEVICE_CREDENTIALS_KEY)
+
+        self.session.add(
+            DeviceRecord(
+                id=1, name="Entrada", host="10.0.0.1", port=80, username="admin",
+                credentials_encrypted="x", enabled=True,
+            )
+        )
+        self.session.commit()
+
+    def scheduler(self, directories) -> DailyImportScheduler:
+        return DailyImportScheduler(self.sessions, FakeDirectoryFactory(directories))
+
+    def configure_sigma(self) -> None:
+        self.sigma.save(encrypted_token=self.cipher.encrypt("token"), account_id=1)
+
+    def stored(self):
+        return SqlAlchemyAutomationRepository(Session(self.engine)).get()
+
+    async def test_skips_sigma_when_it_was_never_configured(self) -> None:
+        """A maior parte do valor da rotina é a sincronização das faciais."""
+        directories = {1: FakeDirectory([person("7", "Adna")])}
+
+        await self.scheduler(directories).run()
+
+        automation = self.stored()
+        self.assertEqual(automation.last_status, ImportStatus.OK)
+        self.assertNotIn("Sigma", automation.last_message)
+
+    async def test_runs_sigma_after_the_facials_and_says_so(self) -> None:
+        self.configure_sigma()
+        directories = {1: FakeDirectory([person("7", "Adna")])}
+        pessoas = [
+            SigmaDweller(enrollment="7", name="Adna", apartment="301", block="A",
+                         cpf="111", rg="222")
+        ]
+
+        with patch.object(SigmaClient, "dwellers", return_value=pessoas):
+            await self.scheduler(directories).run()
+
+        automation = self.stored()
+        self.assertEqual(automation.last_status, ImportStatus.OK)
+        self.assertIn("Sigma:", automation.last_message)
+        # A pessoa que a facial acabou de trazer já saiu com apartamento.
+        gravado = SqlAlchemyResidentRepository(Session(self.engine)).find(1, "7")
+        self.assertEqual(gravado.apartment, "301")
+        self.assertEqual(gravado.cpf, "111")
+
+    async def test_a_sigma_that_fails_does_not_erase_the_facial_result(self) -> None:
+        self.configure_sigma()
+        directories = {1: FakeDirectory([person("7", "Adna")])}
+
+        with patch.object(SigmaClient, "dwellers", side_effect=SigmaUnavailable("token vencido")):
+            await self.scheduler(directories).run()
+
+        automation = self.stored()
+        self.assertEqual(automation.last_status, ImportStatus.FAILED)
+        # O que a facial trouxe continua lá, e a mensagem diz das duas etapas.
+        self.assertIn("1 de 1 equipamentos", automation.last_message)
+        self.assertIn("token vencido", automation.last_message)
+        self.assertIsNotNone(SqlAlchemyResidentRepository(Session(self.engine)).find(1, "7"))
+
+    async def test_the_worst_of_the_two_stages_is_what_the_screen_shows(self) -> None:
+        """Faciais boas e Sigma quebrado ainda deixa gente sem apartamento."""
+        self.configure_sigma()
+        directories = {1: FakeDirectory([person("7", "Adna")])}
+
+        with patch.object(SigmaClient, "dwellers", side_effect=SigmaUnavailable("fora do ar")):
+            await self.scheduler(directories).run()
+
+        self.assertEqual(self.stored().last_status, ImportStatus.FAILED)
+
+    async def test_records_the_run_on_the_sigma_panel_too(self) -> None:
+        """Quem olha o painel do Sigma quer a data da última importação, venha de onde vier."""
+        self.configure_sigma()
+        directories = {1: FakeDirectory([person("7", "Adna")])}
+        pessoas = [SigmaDweller(enrollment="7", name="Adna", apartment="301",
+                                block=None, cpf=None, rg=None)]
+
+        with patch.object(SigmaClient, "dwellers", return_value=pessoas):
+            await self.scheduler(directories).run()
+
+        visto = SqlAlchemySigmaRepository(Session(self.engine)).get()
+        self.assertIsNotNone(visto.last_import_at)
+        self.assertEqual(visto.last_status, ImportStatus.OK)
 
 
 class SchedulingTests(unittest.IsolatedAsyncioTestCase):

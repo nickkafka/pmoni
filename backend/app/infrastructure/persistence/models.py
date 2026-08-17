@@ -20,6 +20,23 @@ class DeviceRecord(Base):
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
 
+class SigmaIntegrationRecord(Base):
+    """The Sigma connection: which account, with which token, and how it last went.
+
+    One row, always id 1. The token is stored encrypted and never leaves the backend:
+    the interface only ever learns whether one is configured.
+    """
+
+    __tablename__ = "sigma_integration"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    token_encrypted: Mapped[str | None] = mapped_column(String(2048))
+    account_id: Mapped[int | None] = mapped_column(Integer)
+    last_import_at: Mapped[datetime | None] = mapped_column(DateTime)
+    last_status: Mapped[str | None] = mapped_column(String(16))
+    last_message: Mapped[str | None] = mapped_column(String(1024))
+
+
 class ImportAutomationRecord(Base):
     """When the daily import runs, and how the last one went.
 
@@ -46,8 +63,8 @@ class ResidentRecord(Base):
     by device and identifier together.
 
     ``name`` and ``photo`` are owned by the device and overwritten on every sync,
-    while ``apartment``, ``block`` and ``document`` are maintained inside pMoni
-    until Sigma supplies them.
+    while ``apartment``, ``block``, ``cpf`` and ``rg`` come from Sigma — or are
+    typed in pMoni for whoever Sigma does not know.
     """
 
     __tablename__ = "residents"
@@ -59,9 +76,10 @@ class ResidentRecord(Base):
     name: Mapped[str] = mapped_column(String(128), nullable=False)
     apartment: Mapped[str | None] = mapped_column(String(32))
     block: Mapped[str | None] = mapped_column(String(32))
-    # Guardado como foi informado, com pontuação e tudo. A busca compara só os
-    # dígitos, então o porteiro acha a pessoa digitando com ou sem formatação.
-    document: Mapped[str | None] = mapped_column(String(32))
+    # Guardados como vieram, com pontuação e tudo. A busca compara só os dígitos,
+    # então o porteiro acha a pessoa digitando com ou sem formatação.
+    cpf: Mapped[str | None] = mapped_column(String(32))
+    rg: Mapped[str | None] = mapped_column(String(32))
     photo: Mapped[bytes | None] = mapped_column(LargeBinary)
     photo_reference: Mapped[str | None] = mapped_column(String(256))
     synced_at: Mapped[datetime | None] = mapped_column(DateTime)

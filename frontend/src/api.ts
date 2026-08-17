@@ -33,7 +33,11 @@ export function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
   return fetch(path, { headers: headers(), signal }).then((response) => parse<T>(response))
 }
 
-export function sendJson<T>(path: string, method: 'POST' | 'PUT' | 'PATCH', body?: unknown): Promise<T> {
+export function sendJson<T>(
+  path: string,
+  method: 'POST' | 'PUT' | 'PATCH' | 'DELETE',
+  body?: unknown,
+): Promise<T> {
   return fetch(path, {
     method,
     headers: headers({ 'Content-Type': 'application/json' }),
