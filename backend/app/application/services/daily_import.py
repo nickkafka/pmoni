@@ -10,21 +10,35 @@ Two stages, in this order: the facials, then Sigma. Somebody enrolled during the
 only exists in pMoni once the equipment has been read, and Sigma is what turns that
 name into an apartment, a CPF and an RG. Running Sigma first would find nobody to
 attach any of it to, and that person would stay incomplete until the next night.
+
+Between two nights, a lighter check asks each facial every few minutes how many
+people and faces it holds. Whoever was enrolled after the nightly run passes the
+gate with no name and no picture until the next one; a count that no longer matches
+what pMoni stored is what gives that away, and only that facial is synced.
 """
+
+import asyncio
 
 from collections.abc import Callable
 from datetime import datetime
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.interval import IntervalTrigger
 from sqlalchemy.orm import Session
 
 from app.application.ports.person_directory_factory import PersonDirectoryFactory
 from app.application.services.resident_sync import ResidentSyncService
-from app.application.services.sigma_import import SigmaImportService, outcome_of
+from app.application.services.sigma_import import (
+    SigmaImportService,
+    outcome_of,
+    visitors_summary,
+)
 from app.core.config import settings
 from app.core.logger import logger
 from app.domain.entities.automation import ImportAutomation, ImportStatus
+from app.domain.entities.device import Device
+from app.domain.entities.resident import EnrollmentCount
 from app.infrastructure.persistence.automation_repository import SqlAlchemyAutomationRepository
 from app.infrastructure.persistence.device_repository import SqlAlchemyDeviceRepository
 from app.infrastructure.persistence.resident_repository import SqlAlchemyResidentRepository
@@ -33,6 +47,7 @@ from app.infrastructure.security import FernetCredentialCipher
 from app.sigma.client import SigmaClient, SigmaUnavailable
 
 JOB_ID = "importacao-diaria"
+CHECK_JOB_ID = "verificacao-faciais"
 
 _SEVERITY = {ImportStatus.OK: 0, ImportStatus.PARTIAL: 1, ImportStatus.FAILED: 2}
 
@@ -57,6 +72,14 @@ class DailyImportScheduler:
         self._session_factory = session_factory
         self._directory_factory = directory_factory
         self._scheduler: AsyncIOScheduler | None = None
+        # The nightly run and the check both sync devices, and two syncs of the same
+        # facial at once would fight over the same rows.
+        self._lock = asyncio.Lock()
+        # What each facial reported the last time the check synced it. A device that
+        # keeps an entry the sync skips — a user with no name, a face with no image —
+        # never matches the local count, and without this it would be synced again
+        # on every check. It is synced once more only when its own count moves.
+        self._settled: dict[int, EnrollmentCount] = {}
 
     async def start(self) -> None:
         self._scheduler = AsyncIOScheduler()
@@ -72,6 +95,7 @@ class DailyImportScheduler:
         """Point the routine at a new hour, or take it off the calendar."""
         if self._scheduler is None:
             return
+        self._apply_check(automation)
         existing = self._scheduler.get_job(JOB_ID)
         if existing is not None:
             existing.remove()
@@ -96,6 +120,10 @@ class DailyImportScheduler:
         exception only reaches a log nobody reads — and would leave the screen showing
         the previous run as though it were the last one.
         """
+        async with self._lock:
+            return await self._run()
+
+    async def _run(self) -> ImportAutomation:
         session = self._session_factory()
         try:
             status, message = await self._import(session)
@@ -193,6 +221,139 @@ class DailyImportScheduler:
         # and the operator looks for a different cause in each case.
         status = ImportStatus.FAILED if len(failed) == len(enabled) else ImportStatus.PARTIAL
         return status, f"{summary} Sem resposta: {', '.join(failed)}."
+
+    def _apply_check(self, automation: ImportAutomation) -> None:
+        existing = self._scheduler.get_job(CHECK_JOB_ID)
+        if existing is not None:
+            existing.remove()
+        if not automation.check_enabled:
+            logger.info("Verificação periódica das faciais desligada.")
+            return
+        self._scheduler.add_job(
+            self.check,
+            IntervalTrigger(minutes=automation.check_interval_minutes),
+            id=CHECK_JOB_ID,
+            max_instances=1,
+            coalesce=True,
+        )
+        logger.info(
+            "Verificação das faciais a cada {} minuto(s).", automation.check_interval_minutes
+        )
+
+    async def check(self) -> ImportAutomation:
+        """Sync only the facials whose count disagrees with pMoni, then Sigma.
+
+        Like ``run``, nothing raises out of here, and the outcome is recorded either
+        way: a check that silently stopped working looks exactly like one that finds
+        nothing to do.
+        """
+        async with self._lock:
+            session = self._session_factory()
+            try:
+                message = await self._check(session)
+            except Exception as exc:
+                logger.exception("A verificação das faciais falhou.")
+                message = f"Falha inesperada: {exc}"
+            try:
+                return SqlAlchemyAutomationRepository(session).record_check(
+                    finished_at=datetime.now(), message=message
+                )
+            finally:
+                session.close()
+
+    async def _check(self, session: Session) -> str:
+        devices = SqlAlchemyDeviceRepository(session)
+        residents = SqlAlchemyResidentRepository(session)
+        service = ResidentSyncService(residents, self._directory_factory)
+
+        enabled = devices.list_enabled()
+        if not enabled:
+            return "Nenhum equipamento habilitado para verificar."
+
+        synced: list[str] = []
+        failed: list[str] = []
+        created = 0
+        for device in enabled:
+            try:
+                on_device = await self._count(device)
+            except Exception as exc:
+                logger.warning("Não foi possível contar os cadastros de {}: {}", device.name, exc)
+                failed.append(device.name)
+                continue
+            stored = residents.enrollment_count(device.id)
+            if on_device == stored or self._settled.get(device.id) == on_device:
+                continue
+
+            logger.info(
+                "Facial {} tem {} pessoa(s) e {} rosto(s); o pMoni tem {} e {}. Sincronizando.",
+                device.name, on_device.users, on_device.faces, stored.users, stored.faces,
+            )
+            try:
+                report = await service.sync(device)
+            except Exception:
+                logger.exception("Sincronização falhou na verificação de {}.", device.name)
+                failed.append(device.name)
+                continue
+            self._settled[device.id] = on_device
+            created += report.created
+            synced.append(
+                f"{device.name} ({report.created} novos, {report.photos_downloaded} fotos, "
+                f"{report.removed} removidos)"
+            )
+
+        if synced:
+            message = f"Sincronizadas: {', '.join(synced)}."
+        else:
+            message = (
+                f"{len(enabled) - len(failed)} de {len(enabled)} faciais conferidas, "
+                "nada a sincronizar."
+            )
+        if failed:
+            message += f" Sem resposta: {', '.join(failed)}."
+        # A importação inteira do Sigma só quando alguém chegou às faciais: rodá-la a
+        # cada verificação pediria centenas de fotos dezenas de vezes por dia. Os
+        # visitantes, esses sim, são conferidos toda vez — são cadastrados no Sigma
+        # ao longo do dia, e o porteiro precisa encontrá-los assim que chegam.
+        if created:
+            sigma = await self._import_sigma(session)
+            if sigma is not None:
+                message += f" Sigma: {sigma[1]}"
+        else:
+            visitors = await self._check_sigma_visitors(session)
+            if visitors is not None:
+                message += f" {visitors}"
+        return message
+
+    async def _check_sigma_visitors(self, session: Session) -> str | None:
+        """Bring in the visitors registered in Sigma since the last check."""
+        sigma = SqlAlchemySigmaRepository(session)
+        integration = sigma.get()
+        if not integration.configured or integration.account_id is None:
+            return None
+        try:
+            cipher = FernetCredentialCipher(settings.DEVICE_CREDENTIALS_KEY)
+            client = SigmaClient(cipher.decrypt(sigma.encrypted_token()))
+        except Exception as exc:
+            return f"Visitantes do Sigma: não foi possível abrir a conexão ({exc})."
+        try:
+            report = await SigmaImportService(SqlAlchemyResidentRepository(session)).run_visitors(
+                client, integration.account_id
+            )
+        except SigmaUnavailable as exc:
+            return f"Visitantes do Sigma: falha ({exc})."
+        except Exception as exc:
+            logger.exception("A verificação dos visitantes do Sigma falhou.")
+            return f"Visitantes do Sigma: falha inesperada ({exc})."
+        finally:
+            await client.close()
+        return visitors_summary(report)
+
+    async def _count(self, device: Device) -> EnrollmentCount:
+        directory = self._directory_factory.create(device)
+        try:
+            return await directory.count_enrolled()
+        finally:
+            await directory.close()
 
     def _read_schedule(self) -> ImportAutomation:
         session = self._session_factory()

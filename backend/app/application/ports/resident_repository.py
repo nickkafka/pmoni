@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
 from collections.abc import Mapping
 
-from app.domain.entities.resident import EnrolledPerson, Resident
+from app.domain.entities.resident import EnrolledPerson, EnrollmentCount, Resident
+from app.domain.entities.sigma import SigmaDweller
 
 
 class ResidentRepository(ABC):
@@ -44,6 +45,11 @@ class ResidentRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def enrollment_count(self, device_id: int) -> EnrollmentCount:
+        """How many of this device's enrollments are stored, and how many with a photo."""
+        raise NotImplementedError
+
+    @abstractmethod
     def save_enrollment(self, device_id: int, person: EnrolledPerson, *, photo: bytes | None) -> bool:
         """Create or refresh the enrollment, keeping the locally managed location.
 
@@ -67,6 +73,42 @@ class ResidentRepository(ABC):
 
         Only the fields in ``changes`` are touched, and ``None`` in it clears one.
         Returns the enrollments written.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def set_active(self, statuses: Mapping[tuple[str, str], bool]) -> int:
+        """Record, per (identifier, name), whether Sigma has the person enabled.
+
+        In bulk, because the import learns it for everyone at once and one commit per
+        person would be hundreds of them. Returns the enrollments whose status changed.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def sigma_visitors(self) -> dict[int, bool]:
+        """Visitors kept from Sigma alone, by Sigma id, and whether each has a photo."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def save_sigma_visitor(self, visitor: SigmaDweller, *, photo: bytes | None) -> bool:
+        """Create or refresh a visitor known only from Sigma. ``True`` when created."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def drop_sigma_visitors(self, keep: set[int]) -> int:
+        """Remove the Sigma-only visitors whose id is not in ``keep``."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def set_fallback_photo(
+        self, employee_no: str, name: str, photo: bytes, *, reference: str
+    ) -> int:
+        """Give a picture to every enrollment of this person that has none.
+
+        For people no facial kept an image of. Enrollments that already have a photo
+        are left alone, and a face the device gains later replaces this one, since
+        ``reference`` never matches a device's. Returns the enrollments written.
         """
         raise NotImplementedError
 

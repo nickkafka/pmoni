@@ -3,7 +3,7 @@ from typing import Any
 
 from app.application.ports.person_directory import PersonDirectory
 from app.core.logger import logger
-from app.domain.entities.resident import EnrolledPerson
+from app.domain.entities.resident import EnrolledPerson, EnrollmentCount
 from app.hikvision.exceptions import HikvisionProtocolError, HikvisionResourceMissing
 from app.hikvision.session import IsapiSession
 from app.hikvision.urls import isapi_path
@@ -39,6 +39,35 @@ class HikvisionPersonDirectory(PersonDirectory):
             yield EnrolledPerson(
                 employee_no=employee_no, name=name, photo_reference=photos.get(employee_no)
             )
+
+    async def count_enrolled(self) -> EnrollmentCount:
+        """Ask both libraries for a single entry and read ``totalMatches``.
+
+        The search is used rather than ``UserInfo/Count`` because it is the endpoint
+        this class already depends on, and its total is the same number the sync
+        pages through — comparing against anything else could disagree on firmwares
+        that count incomplete entries differently.
+        """
+        await self._session.open()
+        users = self._unwrap(
+            await self._session.post_json(
+                self.USER_SEARCH_PATH,
+                {"UserInfoSearchCond": {
+                    "searchID": f"pmoni-count-{self._device_id}",
+                    "searchResultPosition": 0, "maxResults": 1,
+                }},
+            ),
+            "UserInfoSearch",
+        )
+        faces = await self._session.post_json(
+            self.FACE_SEARCH_PATH,
+            {"searchResultPosition": 0, "maxResults": 1,
+             "faceLibType": self.FACE_LIBRARY_TYPE, "FDID": self.FACE_LIBRARY_ID},
+        )
+        return EnrollmentCount(
+            users=int(users.get("totalMatches") or 0),
+            faces=int(faces.get("totalMatches") or 0),
+        )
 
     async def fetch_photo(self, reference: str) -> bytes | None:
         """Return ``None`` when the device kept no picture for that enrollment.

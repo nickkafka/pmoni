@@ -19,10 +19,21 @@ class ImportStatus(StrEnum):
 
 @dataclass(frozen=True, slots=True)
 class ImportAutomation:
-    """The daily routine: when it runs, and how it went the last time."""
+    """The daily routine: when it runs, and how it went the last time.
+
+    Alongside it, the periodic check: the nightly run leaves whoever is enrolled
+    during the day without a name or a face on the screen until the next night, so
+    between runs every facial is asked, every few minutes, whether its count still
+    matches what pMoni holds.
+    """
 
     enabled: bool
     run_at: time
     last_run_at: datetime | None = None
     last_status: ImportStatus | None = None
     last_message: str | None = None
+    check_enabled: bool = False
+    check_interval_minutes: int = 15
+    """Every how often each facial is asked whether it gained somebody."""
+    last_check_at: datetime | None = None
+    last_check_message: str | None = None

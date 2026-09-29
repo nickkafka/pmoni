@@ -41,6 +41,22 @@ class AdminSessionsTests(unittest.TestCase):
 
         self.assertFalse(sessions.holds(token))
 
+    def test_using_the_session_keeps_it_alive(self) -> None:
+        """Conta o tempo parado, não o tempo desde o login: não expira no meio do trabalho."""
+        from datetime import UTC, datetime
+        from unittest.mock import patch
+
+        sessions = build(lifetime=timedelta(minutes=30))
+        start = datetime(2026, 9, 28, 14, 0, tzinfo=UTC)
+        with patch.object(AdminSessions, "_now", return_value=start):
+            token = sessions.open("prever", "prever")
+        with patch.object(AdminSessions, "_now", return_value=start + timedelta(minutes=25)):
+            self.assertTrue(sessions.holds(token))
+        with patch.object(AdminSessions, "_now", return_value=start + timedelta(minutes=50)):
+            self.assertTrue(sessions.holds(token))
+        with patch.object(AdminSessions, "_now", return_value=start + timedelta(minutes=81)):
+            self.assertFalse(sessions.holds(token))
+
     def test_closing_ends_the_session(self) -> None:
         sessions = build()
         token = sessions.open("prever", "prever")

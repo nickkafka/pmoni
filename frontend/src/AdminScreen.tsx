@@ -35,6 +35,7 @@ type Person = {
   block: string | null
   cpf: string | null
   rg: string | null
+  active: boolean | null
   enrollments: Resident[]
 }
 
@@ -50,6 +51,7 @@ function groupByPerson(residents: Resident[]): Person[] {
       person.block ??= resident.block
       person.cpf ??= resident.cpf
       person.rg ??= resident.rg
+      person.active ??= resident.active
     } else {
       people.set(key, {
         key,
@@ -59,6 +61,7 @@ function groupByPerson(residents: Resident[]): Person[] {
         block: resident.block,
         cpf: resident.cpf,
         rg: resident.rg,
+        active: resident.active,
         enrollments: [resident],
       })
     }
@@ -116,9 +119,18 @@ function ResidentPhoto({ person }: { person: Person }) {
  * apartment — the reason to look — off to the side.
  */
 function Enrolments({ person, deviceNames }: { person: Person; deviceNames: Map<number, string> }) {
-  const names = person.enrollments.map(
-    (enrollment) => deviceNames.get(enrollment.device_id) ?? `#${enrollment.device_id}`,
-  )
+  const names = person.enrollments
+    .map((enrollment) => enrollment.device_id)
+    .filter((id): id is number => id !== null)
+    .map((id) => deviceNames.get(id) ?? `#${id}`)
+  if (names.length === 0) {
+    // Visitante trazido do Sigma: existe para a consulta, mas não passa em facial.
+    return (
+      <span className="visitor-tag" title="Cadastrado como visitante no Sigma, sem facial">
+        Visitante do Sigma
+      </span>
+    )
+  }
   return (
     <span className="faces" tabIndex={0} role="note" aria-label={`Faciais: ${names.join(', ')}`}>
       <FaceIcon />
@@ -203,7 +215,10 @@ function ResidentRow({
       <td>
         <ResidentPhoto person={person} />
       </td>
-      <td className="cell--name">{person.name}</td>
+      <td className="cell--name">
+        {person.name}
+        {person.active === false && <span className="inactive-tag cell__tag">Inativo no Sigma</span>}
+      </td>
       <td className="cell--id">{person.employee_no}</td>
       <td className="cell--devices">
         <Enrolments person={person} deviceNames={deviceNames} />
@@ -549,6 +564,7 @@ export default function AdminScreen() {
   const [devices, setDevices] = useState<Device[]>([])
   const [search, setSearch] = useState('')
   const [onlyPending, setOnlyPending] = useState(false)
+  const [onlyInactive, setOnlyInactive] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -575,15 +591,17 @@ export default function AdminScreen() {
 
   const people = useMemo(() => groupByPerson(residents), [residents])
   const pending = people.filter((person) => !person.apartment).length
+  const inactive = people.filter((person) => person.active === false).length
 
   const visible = useMemo(() => {
     const term = normalize(search.trim())
     return people.filter((person) => {
       if (onlyPending && person.apartment) return false
+      if (onlyInactive && person.active !== false) return false
       if (!term) return true
       return normalize(person.name).includes(term) || person.employee_no.includes(term)
     })
-  }, [people, search, onlyPending])
+  }, [people, search, onlyPending, onlyInactive])
 
   const purge = async () => {
     const confirmado = window.confirm(
@@ -656,6 +674,14 @@ export default function AdminScreen() {
               onChange={(event) => setOnlyPending(event.target.checked)}
             />
             Somente sem apartamento
+          </label>
+          <label className="filters__toggle">
+            <input
+              type="checkbox"
+              checked={onlyInactive}
+              onChange={(event) => setOnlyInactive(event.target.checked)}
+            />
+            Somente inativos no Sigma ({inactive})
           </label>
         </div>
 

@@ -63,16 +63,20 @@ def group_people(enrollments: Iterable[Resident]) -> list[DirectoryPerson]:
                 "rg": None,
                 "photo_id": None,
                 "device_ids": [],
+                "active": None,
             }
             people[key] = person
         person["apartment"] = person["apartment"] or enrollment.apartment
         person["block"] = person["block"] or enrollment.block
         person["cpf"] = person["cpf"] or enrollment.cpf
         person["rg"] = person["rg"] or enrollment.rg
+        if person["active"] is None:
+            person["active"] = enrollment.active
         # Stable across calls, so the same face keeps showing up for the same person.
         if enrollment.has_photo and person["photo_id"] is None:
             person["photo_id"] = enrollment.id
-        person["device_ids"].append(enrollment.device_id)
+        if enrollment.device_id is not None:
+            person["device_ids"].append(enrollment.device_id)
 
     return [
         DirectoryPerson(
@@ -84,6 +88,7 @@ def group_people(enrollments: Iterable[Resident]) -> list[DirectoryPerson]:
             rg=person["rg"],
             photo_id=person["photo_id"],
             device_ids=tuple(sorted(set(person["device_ids"]))),
+            active=person["active"],
         )
         for person in people.values()
     ]
@@ -135,6 +140,20 @@ def _rank_location(person: DirectoryPerson, wanted: str) -> int | None:
     return None
 
 
+def searchable_people(enrollments: Iterable[Resident]) -> list[DirectoryPerson]:
+    """Everyone the porter may look up: people Sigma has not disabled.
+
+    Somebody disabled in Sigma no longer belongs to the condominium, and offering
+    them as the answer to "who is this at the gate" would point the porter at the
+    wrong person. Filtered before ranking so they never take a place in the limit.
+
+    Only an explicit ``False`` hides someone. ``None`` means Sigma does not know the
+    person — a visitor enrolled straight on the facial — and hiding them would make
+    the search miss exactly who it exists to find.
+    """
+    return [person for person in group_people(enrollments) if person.active is not False]
+
+
 def search_location(
     enrollments: Iterable[Resident], term: str, *, limit: int = DEFAULT_LIMIT
 ) -> list[DirectoryPerson]:
@@ -145,7 +164,7 @@ def search_location(
 
     ranked = [
         (rank, fold(person.name), person)
-        for person in group_people(enrollments)
+        for person in searchable_people(enrollments)
         if (rank := _rank_location(person, wanted)) is not None
     ]
     ranked.sort(key=lambda item: (item[0], item[1]))
@@ -166,7 +185,7 @@ def search(
     query_digits = digits_of(query)
 
     ranked = []
-    for person in group_people(enrollments):
+    for person in searchable_people(enrollments):
         rank = _rank(person, folded_query, query_digits)
         if rank is not None:
             ranked.append((rank, fold(person.name), person))

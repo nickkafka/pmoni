@@ -60,6 +60,36 @@ editor. Com essa variável o Electron roda o script como Node puro e o `require`
 devolve um caminho em vez da API, o que quebra na primeira linha. Rode `npm run
 electron` num terminal de fora do editor, ou limpe a variável antes.
 
+## Passagem em destaque
+
+Quem acabou de passar aparece em destaque, com a foto grande, por **10 segundos**.
+Depois disso a passagem desce para a faixa **Anteriores**, e o centro da tela volta
+a "Aguardando movimento". A foto grande serve para o porteiro conferir o rosto na
+hora; deixada ali até a próxima passagem, ela ficava exposta por minutos a quem
+estivesse na guarita. Na faixa, passar o mouse sobre a miniatura ainda amplia a
+pessoa. O tempo fica em `CURRENT_SECONDS`, no `PorterScreen.tsx`.
+
+## Pessoas inativas no Sigma
+
+A facial continua liberando quem o condomínio já desativou no Sigma até que alguém
+remova a pessoa do equipamento. Cada importação do Sigma guarda se a pessoa está
+ativa lá, e quem estiver desativado aparece com a etiqueta vermelha **Inativo no
+Sigma**:
+
+- na portaria, na passagem em destaque, na faixa de anteriores e no preview;
+- em **Administração → Moradores**, ao lado do nome, com o filtro **Somente
+  inativos no Sigma** para achar quem precisa ser removido das faciais.
+
+A **consulta de morador** da portaria não mostra os inativos: ela existe para achar
+quem pertence ao condomínio, e oferecer alguém desativado como resposta apontaria o
+porteiro para a pessoa errada. No administrativo eles continuam listados.
+
+Quem o Sigma não conhece fica sem etiqueta e continua aparecendo na consulta — é o
+caso do visitante cadastrado direto na facial, e não saber é diferente de estar
+inativo.
+A situação só muda quando o Sigma é importado de novo — pela rotina diária, pela
+verificação periódica ou pelo botão no painel do Sigma.
+
 ## Consulta de morador na portaria
 
 Quando a facial não reconhece alguém, o porteiro procura pela pessoa no campo do
@@ -105,8 +135,11 @@ ADMIN_PASSWORD=...
 ADMIN_SESSION_MINUTES=30
 ```
 
-A sessão vive apenas na memória: reiniciar a aplicação, ou recarregar a página,
-pede a senha de novo.
+A sessão sobrevive a recarregar a página, mas não a fechar a janela: ela fica no
+`sessionStorage` do navegador, e não no `localStorage`, para que quem abrir o
+programa depois não encontre o administrativo destrancado. Os 30 minutos contam o
+tempo **sem uso** — cada ação renova a sessão, e ela não expira no meio do trabalho.
+Reiniciar o pMoni encerra todas as sessões, e a tela volta a pedir a senha.
 
 ## Exportar e importar as faciais
 
@@ -142,6 +175,13 @@ A ordem não é opcional: quem foi cadastrado hoje só existe no pMoni depois qu
 equipamentos são lidos, e consultar o Sigma antes disso não encontraria a quem
 atribuir o apartamento — a pessoa ficaria incompleta até a noite seguinte.
 
+Quem não tem foto em facial nenhuma — visitantes e pessoas já desativadas, cujo
+rosto o equipamento guarda só como template — ganha na etapa do Sigma a **foto de
+perfil** cadastrada lá, gravada em todos os cadastros dela. A foto da facial sempre
+tem prioridade: a do Sigma só preenche a falta, e é substituída assim que a facial
+passar a ter um rosto para aquela pessoa. Os detalhes do que o Sigma oferece estão
+em [docs/sigma-cloud-api.md](docs/sigma-cloud-api.md).
+
 O Sigma só entra se estiver configurado. Sem token ou sem conta, a etapa é pulada em
 silêncio: quase todo o valor da rotina é a sincronização das faciais, e acusar erro
 toda noite por uma integração que ninguém configurou ensina o operador a ignorar o
@@ -169,6 +209,49 @@ saber antes de escolher um horário em que a máquina costuma estar fora do ar.
 A importação do Sigma entrará nessa mesma rotina, depois das faciais, quando a
 permissão for liberada — ela preenche apartamento e documento de quem as faciais
 acabaram de trazer.
+
+### Verificação periódica das faciais
+
+A importação diária deixa de fora quem é cadastrado depois dela: essa pessoa passa
+na facial e aparece na portaria sem nome e sem foto até a noite seguinte. No mesmo
+painel, **Conferir as faciais periodicamente** pergunta a cada facial, no intervalo
+escolhido (de 1 a 1440 minutos), quantas pessoas e quantos rostos ela tem, e compara
+com o que o pMoni guardou dela.
+
+- Se bater, nada acontece. A pergunta é leve — uma consulta por biblioteca, sem ler
+  o cadastro —, então um intervalo curto não pesa nos equipamentos.
+- Se não bater, só aquela facial é sincronizada. As duas contagens importam: alguém
+  novo muda o número de pessoas, e um rosto adicionado depois a quem já estava lá
+  muda só o de rostos.
+- Se a sincronização trouxe gente nova, o Sigma roda em seguida para completar
+  apartamento e documentos.
+- Com o Sigma configurado, cada verificação também confere os **visitantes e
+  prestadores** cadastrados lá (veja abaixo). São duas consultas leves, e a foto só
+  é pedida na primeira vez que o visitante aparece.
+
+### Visitantes do Sigma
+
+Visitantes e prestadores entram na importação do Sigma. Quem está numa facial
+recebe dela a unidade visitada, os documentos, a foto e a situação, como os
+moradores. Quem **não está em facial nenhuma** — o caso comum: o porteiro libera à
+mão — é trazido para o pMoni mesmo assim, para ser encontrado na consulta da
+portaria. No administrativo ele aparece com a marca **Visitante do Sigma** no lugar
+das faciais.
+
+- Só entram os ativos no Sigma. Desativado lá, o visitante sai do pMoni na
+  verificação seguinte.
+- Quando o visitante é cadastrado numa facial, o registro trazido do Sigma dá lugar
+  ao da facial, para a mesma pessoa não aparecer duas vezes.
+- Eles são conferidos a cada verificação periódica, no intervalo configurado, e
+  também na importação diária e no botão do painel do Sigma.
+
+Uma facial que guarda um cadastro que a sincronização pula (sem nome, ou rosto sem
+imagem) nunca vai bater. Ela é sincronizada uma vez e só volta a ser quando a
+contagem dela mudar de novo — sem isso, seria sincronizada a cada verificação.
+
+O botão **Conferir agora** roda a verificação na hora, para quem acabou de cadastrar
+alguém e quer vê-lo na tela antes que chegue à portaria. A verificação e a
+importação diária nunca rodam ao mesmo tempo.
 
 ## Gerando o instalador
 

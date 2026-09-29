@@ -9,7 +9,7 @@ from app.application.services.daily_import import DailyImportScheduler
 from app.core.config import settings
 from app.database.database import Base
 from app.domain.entities.automation import ImportStatus
-from app.domain.entities.resident import EnrolledPerson
+from app.domain.entities.resident import EnrolledPerson, EnrollmentCount
 from app.infrastructure.persistence.automation_repository import SqlAlchemyAutomationRepository
 from app.domain.entities.sigma import SigmaDweller
 from app.infrastructure.persistence.device_repository import SqlAlchemyDeviceRepository
@@ -25,12 +25,24 @@ class FakeDirectory:
         self._people = people
         self._explode = explode
         self.closed = False
+        self.counted = 0
+        self.listed = 0
+        # Cadastros que o equipamento conta mas a sincronização pula (sem nome).
+        self.unlisted = 0
 
     async def list_enrolled(self):
         if self._explode:
             raise ConnectionError("equipamento fora do ar")
+        self.listed += 1
         for person in self._people:
             yield person
+
+    async def count_enrolled(self) -> EnrollmentCount:
+        self.counted += 1
+        if self._explode:
+            raise ConnectionError("equipamento fora do ar")
+        faces = sum(1 for person in self._people if person.photo_reference)
+        return EnrollmentCount(users=len(self._people) + self.unlisted, faces=faces)
 
     async def fetch_photo(self, reference: str) -> bytes | None:
         return b"jpeg"
@@ -49,12 +61,20 @@ class FakeDirectoryFactory:
         return self.by_device[device.id]
 
 
+def offline_sigma(test: unittest.TestCase) -> None:
+    """A lista de visitantes nunca sai para a rede num teste."""
+    patcher = patch.object(SigmaClient, "visitors", return_value=[])
+    patcher.start()
+    test.addCleanup(patcher.stop)
+
+
 def person(employee_no: str, name: str) -> EnrolledPerson:
     return EnrolledPerson(employee_no, name, f"/face/{employee_no}.jpg")
 
 
 class DailyImportTests(unittest.IsolatedAsyncioTestCase):
     def setUp(self) -> None:
+        offline_sigma(self)
         self.engine = create_engine("sqlite://")
         Base.metadata.create_all(self.engine)
         self.sessions = sessionmaker(bind=self.engine)
@@ -171,6 +191,7 @@ class SigmaStageTests(unittest.IsolatedAsyncioTestCase):
     """A segunda etapa da rotina: buscar no Sigma o que as faciais não sabem."""
 
     def setUp(self) -> None:
+        offline_sigma(self)
         self.engine = create_engine("sqlite://")
         Base.metadata.create_all(self.engine)
         self.sessions = sessionmaker(bind=self.engine)
@@ -266,8 +287,165 @@ class SigmaStageTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(visto.last_status, ImportStatus.OK)
 
 
+class FacialCheckTests(unittest.IsolatedAsyncioTestCase):
+    """A verificação entre duas noites: sincroniza só a facial cuja contagem mudou."""
+
+    def setUp(self) -> None:
+        offline_sigma(self)
+        self.engine = create_engine("sqlite://")
+        Base.metadata.create_all(self.engine)
+        self.sessions = sessionmaker(bind=self.engine)
+        self.session = Session(self.engine)
+        self.addCleanup(self.session.close)
+        for device_id, name in ((1, "Entrada"), (2, "Saida")):
+            self.session.add(
+                DeviceRecord(
+                    id=device_id, name=name, host=f"10.0.0.{device_id}", port=80,
+                    username="admin", credentials_encrypted="x", enabled=True,
+                )
+            )
+        self.session.commit()
+
+    def residents(self) -> SqlAlchemyResidentRepository:
+        return SqlAlchemyResidentRepository(Session(self.engine))
+
+    def stored(self):
+        return SqlAlchemyAutomationRepository(Session(self.engine)).get()
+
+    async def test_syncs_the_facial_that_gained_somebody_and_leaves_the_other_alone(self) -> None:
+        """Quem foi cadastrado depois da importação da noite aparece sem esperar a próxima."""
+        entrada = FakeDirectory([person("7", "Adna")])
+        saida = FakeDirectory([person("8", "Davi")])
+        scheduler = DailyImportScheduler(self.sessions, FakeDirectoryFactory({1: entrada, 2: saida}))
+        await scheduler.run()
+        entrada.listed = saida.listed = 0
+
+        entrada._people.append(person("9", "Bruna"))
+        await scheduler.check()
+
+        self.assertEqual(entrada.listed, 1)
+        self.assertEqual(saida.listed, 0)
+        self.assertIsNotNone(self.residents().find(1, "9"))
+        automation = self.stored()
+        self.assertIn("Entrada (1 novos", automation.last_check_message)
+        self.assertIsNotNone(automation.last_check_at)
+
+    async def test_a_face_added_to_somebody_already_there_is_also_a_difference(self) -> None:
+        """Mesmo número de pessoas, mas uma ganhou rosto: sem isso ela seguiria sem foto."""
+        entrada = FakeDirectory([EnrolledPerson("7", "Adna", None)])
+        scheduler = DailyImportScheduler(
+            self.sessions, FakeDirectoryFactory({1: entrada, 2: FakeDirectory([])})
+        )
+        await scheduler.run()
+        entrada.listed = 0
+
+        entrada._people[0] = person("7", "Adna")
+        await scheduler.check()
+
+        self.assertEqual(entrada.listed, 1)
+        self.assertTrue(self.residents().find(1, "7").has_photo)
+
+    async def test_nothing_changed_means_nothing_synced(self) -> None:
+        entrada = FakeDirectory([person("7", "Adna")])
+        saida = FakeDirectory([person("8", "Davi")])
+        scheduler = DailyImportScheduler(self.sessions, FakeDirectoryFactory({1: entrada, 2: saida}))
+        await scheduler.run()
+        entrada.listed = saida.listed = 0
+
+        await scheduler.check()
+
+        self.assertEqual((entrada.listed, saida.listed), (0, 0))
+        self.assertIn("2 de 2 faciais conferidas", self.stored().last_check_message)
+
+    async def test_an_entry_the_sync_skips_is_not_synced_again_on_every_check(self) -> None:
+        """Um cadastro sem nome nunca entra, e a contagem nunca bate por causa dele."""
+        entrada = FakeDirectory([person("7", "Adna")])
+        entrada.unlisted = 1
+        scheduler = DailyImportScheduler(
+            self.sessions, FakeDirectoryFactory({1: entrada, 2: FakeDirectory([])})
+        )
+
+        await scheduler.check()
+        await scheduler.check()
+        self.assertEqual(entrada.listed, 1)
+
+        # Mas volta a sincronizar quando a contagem da facial muda de novo.
+        entrada._people.append(person("9", "Bruna"))
+        await scheduler.check()
+        self.assertEqual(entrada.listed, 2)
+
+    async def test_a_gate_that_does_not_answer_is_reported_and_the_others_still_checked(self) -> None:
+        saida = FakeDirectory([person("8", "Davi")])
+        scheduler = DailyImportScheduler(
+            self.sessions,
+            FakeDirectoryFactory({1: FakeDirectory([], explode=True), 2: saida}),
+        )
+
+        await scheduler.check()
+
+        self.assertIsNotNone(self.residents().find(2, "8"))
+        self.assertIn("Sem resposta: Entrada", self.stored().last_check_message)
+
+    async def test_runs_sigma_only_when_somebody_new_arrived(self) -> None:
+        cipher = FernetCredentialCipher(settings.DEVICE_CREDENTIALS_KEY)
+        SqlAlchemySigmaRepository(self.session).save(
+            encrypted_token=cipher.encrypt("token"), account_id=1
+        )
+        entrada = FakeDirectory([person("7", "Adna")])
+        scheduler = DailyImportScheduler(
+            self.sessions, FakeDirectoryFactory({1: entrada, 2: FakeDirectory([])})
+        )
+        pessoas = [SigmaDweller(enrollment="7", name="Adna", apartment="301",
+                                block="A", cpf=None, rg=None)]
+
+        with patch.object(SigmaClient, "dwellers", return_value=pessoas) as dwellers:
+            await scheduler.check()
+            self.assertEqual(dwellers.call_count, 1)
+            self.assertIn("Sigma:", self.stored().last_check_message)
+            await scheduler.check()
+            self.assertEqual(dwellers.call_count, 1)
+
+        self.assertEqual(self.residents().find(1, "7").apartment, "301")
+
+    async def test_checks_the_sigma_visitors_even_when_no_facial_changed(self) -> None:
+        """Visitantes são cadastrados no Sigma o dia inteiro, sem passar por facial."""
+        cipher = FernetCredentialCipher(settings.DEVICE_CREDENTIALS_KEY)
+        SqlAlchemySigmaRepository(self.session).save(
+            encrypted_token=cipher.encrypt("token"), account_id=1
+        )
+        scheduler = DailyImportScheduler(
+            self.sessions, FakeDirectoryFactory({1: FakeDirectory([]), 2: FakeDirectory([])})
+        )
+        visita = SigmaDweller(enrollment="", name="Carlos Visita", apartment="301", block=None,
+                              cpf=None, rg=None, sigma_id=501, visitor=True)
+
+        with patch.object(SigmaClient, "visitors", return_value=[visita]), \
+                patch.object(SigmaClient, "profile_photo", return_value=None), \
+                patch.object(SigmaClient, "dwellers") as dwellers:
+            await scheduler.check()
+
+        # Só a etapa leve: a importação inteira dos moradores não rodou.
+        dwellers.assert_not_called()
+        [row] = [r for r in self.residents().list_directory() if r.device_id is None]
+        self.assertEqual(row.name, "Carlos Visita")
+        self.assertIn("Visitantes sem facial: 1 no pMoni (1 novos)", self.stored().last_check_message)
+
+    async def test_the_check_does_not_touch_the_nightly_outcome(self) -> None:
+        scheduler = DailyImportScheduler(
+            self.sessions,
+            FakeDirectoryFactory({1: FakeDirectory([person("7", "Adna")]), 2: FakeDirectory([])}),
+        )
+
+        await scheduler.check()
+
+        automation = self.stored()
+        self.assertIsNone(automation.last_run_at)
+        self.assertIsNone(automation.last_status)
+
+
 class SchedulingTests(unittest.IsolatedAsyncioTestCase):
     def setUp(self) -> None:
+        offline_sigma(self)
         engine = create_engine("sqlite://")
         Base.metadata.create_all(engine)
         self.sessions = sessionmaker(bind=engine)
@@ -312,6 +490,34 @@ class SchedulingTests(unittest.IsolatedAsyncioTestCase):
         scheduler = await self.scheduler()
 
         scheduler.apply(self.repository.save_schedule(enabled=False, run_at=time(3, 0)))
+
+        self.assertEqual(scheduler._scheduler.get_jobs(), [])
+
+
+    async def test_schedules_the_check_at_the_interval_that_was_saved(self) -> None:
+        self.repository.save_check(enabled=True, interval_minutes=10)
+
+        scheduler = await self.scheduler()
+
+        job = scheduler._scheduler.get_job("verificacao-faciais")
+        self.assertEqual(job.trigger.interval.total_seconds(), 600)
+        # A importação diária segue desligada: são rotinas independentes.
+        self.assertIsNone(scheduler._scheduler.get_job("importacao-diaria"))
+
+    async def test_changing_the_interval_leaves_one_check_behind_not_two(self) -> None:
+        self.repository.save_check(enabled=True, interval_minutes=10)
+        scheduler = await self.scheduler()
+
+        scheduler.apply(self.repository.save_check(enabled=True, interval_minutes=30))
+
+        [job] = scheduler._scheduler.get_jobs()
+        self.assertEqual(job.trigger.interval.total_seconds(), 1800)
+
+    async def test_turning_the_check_off_takes_it_off_the_calendar(self) -> None:
+        self.repository.save_check(enabled=True, interval_minutes=10)
+        scheduler = await self.scheduler()
+
+        scheduler.apply(self.repository.save_check(enabled=False, interval_minutes=10))
 
         self.assertEqual(scheduler._scheduler.get_jobs(), [])
 

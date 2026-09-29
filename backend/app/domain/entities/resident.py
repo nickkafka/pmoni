@@ -17,6 +17,8 @@ class ResidentSummary:
     Some equipment stores a face only as a biometric template, so the enrollment the
     event came from often has no image while another one for the same person does.
     """
+    active: bool | None = None
+    """Whether Sigma has the person enabled; ``None`` when Sigma does not know them."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -41,7 +43,8 @@ class Resident:
     """
 
     id: int
-    device_id: int
+    device_id: int | None
+    """``None`` for a visitor known only from Sigma, enrolled on no facial."""
     employee_no: str
     name: str
     apartment: str | None
@@ -50,11 +53,13 @@ class Resident:
     synced_at: datetime | None
     cpf: str | None = None
     rg: str | None = None
+    active: bool | None = None
+    """Whether Sigma has the person enabled; ``None`` when Sigma does not know them."""
 
     def to_summary(self) -> ResidentSummary:
         return ResidentSummary(
             self.id, self.employee_no, self.name, self.apartment, self.block,
-            self.id if self.has_photo else None,
+            self.id if self.has_photo else None, self.active,
         )
 
 
@@ -80,3 +85,18 @@ class DirectoryPerson:
     rg: str | None
     photo_id: int | None
     device_ids: tuple[int, ...]
+    active: bool | None = None
+    """Whether Sigma has the person enabled; ``None`` when Sigma does not know them."""
+
+
+@dataclass(frozen=True, slots=True)
+class EnrollmentCount:
+    """How many people a device holds, and how many of them have a face.
+
+    Both numbers, because they go stale separately: someone enrolled after the last
+    sync raises ``users``, while a face added later to somebody already there only
+    raises ``faces`` — and that person shows up on the screen without a picture.
+    """
+
+    users: int
+    faces: int

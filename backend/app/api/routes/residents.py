@@ -56,6 +56,7 @@ def search_residents(
             rg=person.rg,
             photo_id=person.photo_id,
             device_ids=list(person.device_ids),
+            active=person.active,
             # Um cadastro pode ter sobrado de um equipamento removido; a busca segue
             # valendo, apenas sem o nome dele.
             device_names=[names[i] for i in person.device_ids if i in names],
@@ -72,7 +73,9 @@ def read_resident_photo(
     photo = repository.get_photo(resident_id)
     if photo is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Foto não sincronizada.")
-    return Response(content=photo, media_type="image/jpeg")
+    # A facial entrega JPEG, mas a foto de perfil do Sigma pode ser PNG.
+    media_type = "image/png" if photo.startswith(b"\x89PNG") else "image/jpeg"
+    return Response(content=photo, media_type=media_type)
 
 
 @router.patch("/person", response_model=list[ResidentRead], dependencies=[Depends(require_admin)])

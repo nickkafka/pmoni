@@ -29,6 +29,9 @@ export function ImportAutomationPanel() {
   const [automation, setAutomation] = useState<Automation | null>(null)
   const [enabled, setEnabled] = useState(false)
   const [runAt, setRunAt] = useState('03:00')
+  const [checkEnabled, setCheckEnabled] = useState(false)
+  const [checkInterval, setCheckInterval] = useState(15)
+  const [checking, setChecking] = useState(false)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -37,6 +40,8 @@ export function ImportAutomationPanel() {
     setAutomation(saved)
     setEnabled(saved.enabled)
     setRunAt(saved.run_at)
+    setCheckEnabled(saved.check_enabled)
+    setCheckInterval(saved.check_interval_minutes)
   }
 
   useEffect(() => {
@@ -50,8 +55,19 @@ export function ImportAutomationPanel() {
     setMessage(null)
     setError(null)
     try {
-      adopt(await sendJson<Automation>('/automation', 'PUT', { enabled, run_at: runAt }))
-      setMessage(enabled ? `Importação agendada para ${runAt}.` : 'Importação automática desligada.')
+      adopt(
+        await sendJson<Automation>('/automation', 'PUT', {
+          enabled,
+          run_at: runAt,
+          check_enabled: checkEnabled,
+          check_interval_minutes: checkInterval,
+        }),
+      )
+      const daily = enabled ? `Importação agendada para ${runAt}.` : 'Importação automática desligada.'
+      const check = checkEnabled
+        ? ` Faciais conferidas a cada ${checkInterval} min.`
+        : ' Verificação periódica desligada.'
+      setMessage(daily + check)
     } catch (failure) {
       setError((failure as Error).message)
     } finally {
@@ -59,8 +75,31 @@ export function ImportAutomationPanel() {
     }
   }
 
+  const checkNow = async () => {
+    setChecking(true)
+    setMessage(null)
+    setError(null)
+    try {
+      const checked = await sendJson<Automation>('/automation/check', 'POST')
+      setAutomation((current) =>
+        current
+          ? { ...current, last_check_at: checked.last_check_at, last_check_message: checked.last_check_message }
+          : checked,
+      )
+    } catch (failure) {
+      setError((failure as Error).message)
+    } finally {
+      setChecking(false)
+    }
+  }
+
+  const intervalValid = Number.isInteger(checkInterval) && checkInterval >= 1 && checkInterval <= 1440
   const changed =
-    automation !== null && (automation.enabled !== enabled || automation.run_at !== runAt)
+    automation !== null &&
+    (automation.enabled !== enabled ||
+      automation.run_at !== runAt ||
+      automation.check_enabled !== checkEnabled ||
+      automation.check_interval_minutes !== checkInterval)
 
   return (
     <section className="panel">
@@ -70,7 +109,7 @@ export function ImportAutomationPanel() {
           type="button"
           className="button button--primary panel__action"
           onClick={save}
-          disabled={saving || !changed}
+          disabled={saving || !changed || !intervalValid}
         >
           {saving ? 'Salvando…' : 'Salvar'}
         </button>
@@ -112,6 +151,66 @@ export function ImportAutomationPanel() {
           }
         >
           {automation.last_message}
+        </p>
+      )}
+
+      <h3 className="automation__subtitle">Verificação das faciais</h3>
+      <p className="panel__hint">
+        Entre duas importações, pergunta a cada facial quantas pessoas e rostos ela tem. Se
+        não bater com o pMoni, sincroniza só aquela facial e completa pelo Sigma quem chegou.
+        É uma consulta leve: não lê o cadastro inteiro a cada vez.
+      </p>
+
+      <div className="automation">
+        <label className="automation__toggle">
+          <input
+            type="checkbox"
+            checked={checkEnabled}
+            onChange={(event) => setCheckEnabled(event.target.checked)}
+          />
+          Conferir as faciais periodicamente
+        </label>
+
+        <label className="automation__time">
+          A cada
+          <input
+            className="field"
+            type="number"
+            min={1}
+            max={1440}
+            step={1}
+            value={Number.isNaN(checkInterval) ? '' : checkInterval}
+            disabled={!checkEnabled}
+            onChange={(event) => setCheckInterval(event.target.valueAsNumber)}
+          />
+          minutos
+        </label>
+
+        <button
+          type="button"
+          className="button"
+          onClick={checkNow}
+          disabled={checking}
+        >
+          {checking ? 'Conferindo…' : 'Conferir agora'}
+        </button>
+      </div>
+
+      <p className="panel__hint">
+        {automation?.last_check_at
+          ? `Última verificação: ${whenOf(automation.last_check_at)}`
+          : 'Nenhuma verificação executada até agora.'}
+      </p>
+
+      {automation?.last_check_message && (
+        <p
+          className={
+            /Sem resposta|Falha/.test(automation.last_check_message)
+              ? 'automation__log automation__log--bad'
+              : 'automation__log'
+          }
+        >
+          {automation.last_check_message}
         </p>
       )}
 

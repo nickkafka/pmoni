@@ -152,6 +152,24 @@ select,
   }
 }
 
+/* Desativada no Sigma e ainda cadastrada na facial. Usada na portaria e no
+   administrativo, com o mesmo vermelho do acesso negado: é a passagem que merece
+   um segundo olhar do porteiro. */
+.inactive-tag {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--status-danger-border, var(--status-danger));
+  background: var(--status-danger-bg);
+  color: var(--status-danger);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
 body {
   margin: 0;
   color: var(--text-primary);

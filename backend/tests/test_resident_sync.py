@@ -6,7 +6,7 @@ from app.application.ports.person_directory_factory import PersonDirectoryFactor
 from app.application.ports.resident_repository import ResidentRepository
 from app.application.services.resident_sync import ResidentSyncService
 from app.domain.entities.device import Device
-from app.domain.entities.resident import EnrolledPerson, Resident
+from app.domain.entities.resident import EnrolledPerson, EnrollmentCount, Resident
 
 DEVICE = Device(1, "Portaria", "192.168.1.10", 80, "admin", "DS-K1T342MFWX", True)
 
@@ -26,6 +26,10 @@ class FakeDirectory(PersonDirectory):
     async def list_enrolled(self) -> AsyncIterator[EnrolledPerson]:
         for person in self.people:
             yield person
+
+    async def count_enrolled(self) -> EnrollmentCount:
+        faces = sum(1 for person in self.people if person.photo_reference)
+        return EnrollmentCount(users=len(self.people), faces=faces)
 
     async def fetch_photo(self, reference: str) -> bytes | None:
         if reference in self.broken:
@@ -73,6 +77,9 @@ class FakeRepository(ResidentRepository):
         row = self.rows.get((device_id, employee_no))
         return row.get("photo_reference") if row and row.get("photo") else None
 
+    def enrollment_count(self, device_id: int) -> EnrollmentCount:
+        raise NotImplementedError
+
     def save_enrollment(self, device_id, person, *, photo) -> bool:
         key = (device_id, person.employee_no)
         created = key not in self.rows
@@ -86,6 +93,21 @@ class FakeRepository(ResidentRepository):
         raise NotImplementedError
 
     def set_person_details(self, employee_no, name, changes):
+        raise NotImplementedError
+
+    def set_active(self, statuses) -> int:
+        raise NotImplementedError
+
+    def sigma_visitors(self):
+        raise NotImplementedError
+
+    def save_sigma_visitor(self, visitor, *, photo) -> bool:
+        raise NotImplementedError
+
+    def drop_sigma_visitors(self, keep) -> int:
+        raise NotImplementedError
+
+    def set_fallback_photo(self, employee_no, name, photo, *, reference) -> int:
         raise NotImplementedError
 
     def drop_all(self) -> int:

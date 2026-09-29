@@ -90,4 +90,6 @@ def _resident_message(resident: ResidentSummary | None) -> dict | None:
         # Pode apontar para o cadastro da pessoa em outra facial, quando a de
         # origem guardou o rosto apenas como template.
         "photo_url": f"/residents/{resident.photo_id}/photo" if resident.photo_id else None,
+        # Desativada no Sigma e ainda liberada pela facial: o porteiro precisa ver.
+        "active": resident.active,
     }

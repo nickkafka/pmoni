@@ -7,7 +7,8 @@ class ResidentRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
-    device_id: int
+    device_id: int | None
+    """Nulo para o visitante que só existe no Sigma."""
     employee_no: str
     name: str
     apartment: str | None
@@ -16,6 +17,8 @@ class ResidentRead(BaseModel):
     rg: str | None
     has_photo: bool
     synced_at: datetime | None
+    active: bool | None = None
+    """Situação no Sigma; nulo quando ele não conhece a pessoa."""
 
 
 class ResidentLocationUpdate(BaseModel):
@@ -44,6 +47,7 @@ class DirectoryPersonRead(BaseModel):
     photo_id: int | None
     device_ids: list[int]
     device_names: list[str]
+    active: bool | None = None
 
 
 class PersonDetailsUpdate(BaseModel):

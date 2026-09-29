@@ -76,6 +76,26 @@ class HikvisionPersonDirectoryTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(people), 55)
         self.assertTrue(all(person.photo_reference for person in people))
 
+    async def test_counts_people_and_faces_without_paging_through_them(self) -> None:
+        """A verificação roda a cada poucos minutos: ler o diretório inteiro seria sincronizar."""
+        users = [user(str(index), f"Pessoa {index}") for index in range(55)]
+        faces = [face(str(index), index) for index in range(40)]
+        session = FakeIsapiSession(users, faces)
+        requests: list[int] = []
+        original = session.post_json
+
+        async def spy(path, payload):
+            requests.append(1)
+            return await original(path, payload)
+
+        session.post_json = spy
+        directory = HikvisionPersonDirectory(session=session, device_id=1)
+
+        count = await directory.count_enrolled()
+
+        self.assertEqual((count.users, count.faces), (55, 40))
+        self.assertEqual(len(requests), 2)
+
     async def test_strips_host_and_token_from_the_photo_reference(self) -> None:
         people = await self.collect(FakeIsapiSession([user("2", "nk")], [face("2", 54)]))
 

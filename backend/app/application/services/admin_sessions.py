@@ -33,9 +33,14 @@ class AdminSessions:
         expiry = self._expiries.get(token)
         if expiry is None:
             return False
-        if expiry <= self._now():
+        now = self._now()
+        if expiry <= now:
             self._expiries.pop(token, None)
             return False
+        # Renewed on every use: the lifetime counts idle time, not time since the
+        # login. Expiring mid-task, while the operator is still working, only
+        # teaches them to keep the password on a note next to the screen.
+        self._expiries[token] = now + self._lifetime
         return True
 
     def close(self, token: str | None) -> None:

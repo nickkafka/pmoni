@@ -152,6 +152,8 @@ const NAMES_WORTH_SPELLING = 2
 
 function enrolmentSummary(person: DirectoryPerson): string {
   const total = person.device_ids.length
+  // Trazido do Sigma sem facial: o porteiro libera à mão, então vale dizer.
+  if (total === 0) return 'Visitante do Sigma · sem facial'
   if (person.device_names.length > 0 && person.device_names.length <= NAMES_WORTH_SPELLING) {
     return person.device_names.join(' · ')
   }

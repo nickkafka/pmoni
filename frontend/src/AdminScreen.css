@@ -214,6 +214,26 @@
   background: var(--status-warning-bg);
 }
 
+.visitor-tag {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--gold-primary);
+  background: var(--gold-glow);
+  color: var(--gold-primary);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.cell__tag {
+  margin-left: 8px;
+  padding: 2px 8px;
+  font-size: 10px;
+}
+
 .cell--name {
   font-weight: 600;
   color: var(--text-primary);
@@ -657,6 +677,17 @@
   font-size: 14px;
   font-weight: 300;
   color: var(--text-primary);
+}
+
+.automation__subtitle {
+  margin: 22px 0 0;
+  padding-top: 18px;
+  border-top: 1px solid var(--divider);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--label-caps);
 }
 
 .automation__time .field {

@@ -23,3 +23,13 @@ class AutomationRepository(ABC):
     ) -> ImportAutomation:
         """Record how a run ended, leaving the schedule untouched."""
         raise NotImplementedError
+
+    @abstractmethod
+    def save_check(self, *, enabled: bool, interval_minutes: int) -> ImportAutomation:
+        """Change whether and how often the facials are checked."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def record_check(self, *, finished_at: datetime, message: str) -> ImportAutomation:
+        """Record how the last check went, leaving everything else untouched."""
+        raise NotImplementedError

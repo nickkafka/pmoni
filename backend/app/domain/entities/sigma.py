@@ -3,6 +3,14 @@ from datetime import datetime
 
 from app.domain.entities.automation import ImportStatus
 
+SIGMA_PHOTO_PREFIX = "sigma:"
+"""
+Marca a foto que veio do perfil no Sigma, e não da facial.
+
+Nunca coincide com a referência de um equipamento, então a sincronização troca essa
+foto pela da facial assim que ela passar a ter uma.
+"""
+
 
 @dataclass(frozen=True, slots=True)
 class SigmaIntegration:
@@ -36,6 +44,12 @@ class SigmaDweller:
     block: str | None
     cpf: str | None
     rg: str | None
+    sigma_id: int | None = None
+    """Sigma's own ``id``, which is what its photo route is addressed by."""
+    enabled: bool = True
+    """Disabled in Sigma, and often still enrolled on a facial that lets them in."""
+    visitor: bool = False
+    """A visitor or service provider, rather than somebody living there."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -55,3 +69,19 @@ class SigmaImportReport:
     no cadastro de outra (ADR 0010), então divergência de nome é motivo para não
     gravar, e para avisar.
     """
+    photos: int = 0
+    """Pessoas sem foto em facial nenhuma que ganharam a foto de perfil do Sigma."""
+    inactive: int = 0
+    """Desativadas no Sigma e ainda cadastradas em alguma facial."""
+    visitors: "SigmaVisitorReport | None" = None
+    """O que a importação fez com os visitantes que não estão em facial nenhuma."""
+
+
+@dataclass(frozen=True, slots=True)
+class SigmaVisitorReport:
+    """Visitors active in Sigma and on no facial, as kept in pMoni's directory."""
+
+    created: int
+    updated: int
+    removed: int
+    photos: int

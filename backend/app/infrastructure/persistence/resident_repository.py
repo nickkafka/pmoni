@@ -1,11 +1,12 @@
 from collections.abc import Mapping
 from datetime import UTC, datetime
 
-from sqlalchemy import select
+from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
 from app.application.ports.resident_repository import ResidentRepository
-from app.domain.entities.resident import EnrolledPerson, Resident
+from app.domain.entities.resident import EnrolledPerson, EnrollmentCount, Resident
+from app.domain.entities.sigma import SIGMA_PHOTO_PREFIX, SigmaDweller
 from app.infrastructure.persistence.models import ResidentRecord
 
 
@@ -41,6 +42,7 @@ class SqlAlchemyResidentRepository(ResidentRepository):
                 ResidentRecord.block,
                 ResidentRecord.cpf,
                 ResidentRecord.rg,
+                ResidentRecord.active,
                 ResidentRecord.photo.is_not(None).label("has_photo"),
                 ResidentRecord.synced_at,
             ).order_by(ResidentRecord.name, ResidentRecord.id)
@@ -50,7 +52,7 @@ class SqlAlchemyResidentRepository(ResidentRepository):
                 id=row.id, device_id=row.device_id, employee_no=row.employee_no,
                 name=row.name, apartment=row.apartment, block=row.block,
                 has_photo=row.has_photo, synced_at=row.synced_at,
-                cpf=row.cpf, rg=row.rg,
+                cpf=row.cpf, rg=row.rg, active=row.active,
             )
             for row in rows
         ]
@@ -81,6 +83,21 @@ class SqlAlchemyResidentRepository(ResidentRepository):
         if record is None or record.photo is None:
             return None
         return record.photo_reference
+
+    def enrollment_count(self, device_id: int) -> EnrollmentCount:
+        # A referência só é gravada junto com a imagem, então contá-la conta quem tem
+        # foto sem ler os bytes de cada uma. A foto do Sigma fica de fora: a facial
+        # não a tem, e contá-la faria a verificação ver diferença onde não há.
+        from_device = case(
+            (ResidentRecord.photo_reference.startswith(SIGMA_PHOTO_PREFIX), None),
+            else_=ResidentRecord.photo_reference,
+        )
+        users, faces = self._session.execute(
+            select(func.count(), func.count(from_device)).where(
+                ResidentRecord.device_id == device_id
+            )
+        ).one()
+        return EnrollmentCount(users=users, faces=faces)
 
     def save_enrollment(self, device_id: int, person: EnrolledPerson, *, photo: bytes | None) -> bool:
         record = self._find(device_id, person.employee_no)
@@ -142,6 +159,83 @@ class SqlAlchemyResidentRepository(ResidentRepository):
         self._session.commit()
         return [self._to_entity(record) for record in records]
 
+    def set_active(self, statuses: Mapping[tuple[str, str], bool]) -> int:
+        if not statuses:
+            return 0
+        changed = 0
+        records = self._session.scalars(
+            select(ResidentRecord).where(
+                ResidentRecord.employee_no.in_({employee_no for employee_no, _ in statuses})
+            )
+        ).all()
+        for record in records:
+            active = statuses.get((record.employee_no, record.name))
+            if active is not None and record.active is not active:
+                record.active = active
+                changed += 1
+        self._session.commit()
+        return changed
+
+    def sigma_visitors(self) -> dict[int, bool]:
+        rows = self._session.execute(
+            select(ResidentRecord.sigma_id, ResidentRecord.photo.is_not(None)).where(
+                ResidentRecord.device_id.is_(None), ResidentRecord.sigma_id.is_not(None)
+            )
+        ).all()
+        return {sigma_id: has_photo for sigma_id, has_photo in rows}
+
+    def save_sigma_visitor(self, visitor: SigmaDweller, *, photo: bytes | None) -> bool:
+        record = self._session.scalar(
+            select(ResidentRecord).where(
+                ResidentRecord.device_id.is_(None), ResidentRecord.sigma_id == visitor.sigma_id
+            )
+        )
+        created = record is None
+        if record is None:
+            record = ResidentRecord(device_id=None, sigma_id=visitor.sigma_id)
+            self._session.add(record)
+        # Sem matrícula o visitante ainda precisa de um identificador, e o do Sigma é
+        # o único que ele tem. Prefixado para nunca se confundir com o de uma facial.
+        record.employee_no = visitor.enrollment or f"sigma-{visitor.sigma_id}"
+        record.name = visitor.name
+        record.apartment, record.block = visitor.apartment, visitor.block
+        record.cpf, record.rg = visitor.cpf, visitor.rg
+        record.active = visitor.enabled
+        record.synced_at = datetime.now(UTC)
+        if photo is not None:
+            record.photo = photo
+            record.photo_reference = f"{SIGMA_PHOTO_PREFIX}{visitor.sigma_id}"
+        self._session.commit()
+        return created
+
+    def drop_sigma_visitors(self, keep: set[int]) -> int:
+        stale = self._session.scalars(
+            select(ResidentRecord).where(
+                ResidentRecord.device_id.is_(None),
+                ResidentRecord.sigma_id.not_in(keep) | ResidentRecord.sigma_id.is_(None),
+            )
+        ).all()
+        for record in stale:
+            self._session.delete(record)
+        self._session.commit()
+        return len(stale)
+
+    def set_fallback_photo(
+        self, employee_no: str, name: str, photo: bytes, *, reference: str
+    ) -> int:
+        records = self._session.scalars(
+            select(ResidentRecord).where(
+                ResidentRecord.employee_no == employee_no,
+                ResidentRecord.name == name,
+                ResidentRecord.photo.is_(None),
+            )
+        ).all()
+        for record in records:
+            record.photo = photo
+            record.photo_reference = reference
+        self._session.commit()
+        return len(records)
+
     def drop_missing(self, device_id: int, keep: set[str]) -> int:
         stale = self._session.scalars(
             select(ResidentRecord).where(
@@ -173,5 +267,5 @@ class SqlAlchemyResidentRepository(ResidentRepository):
             id=record.id, device_id=record.device_id, employee_no=record.employee_no,
             name=record.name, apartment=record.apartment, block=record.block,
             has_photo=record.photo is not None, synced_at=record.synced_at,
-            cpf=record.cpf, rg=record.rg,
+            cpf=record.cpf, rg=record.rg, active=record.active,
         )

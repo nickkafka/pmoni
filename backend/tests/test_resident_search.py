@@ -1,4 +1,4 @@
-﻿import unittest
+import unittest
 
 from app.application.services.resident_search import group_people, search
 from app.domain.entities.resident import Resident
@@ -15,12 +15,45 @@ def enrollment(
     cpf: str | None = None,
     rg: str | None = None,
     has_photo: bool = True,
+    active: bool | None = None,
 ) -> Resident:
     return Resident(
         id=resident_id, device_id=device_id, employee_no=employee_no, name=name,
         apartment=apartment, block=block, has_photo=has_photo, synced_at=None,
-        cpf=cpf, rg=rg,
+        cpf=cpf, rg=rg, active=active,
     )
+
+
+class InactiveTests(unittest.TestCase):
+    """A portaria procura quem pertence ao condomínio, não quem o Sigma desativou."""
+
+    def test_leaves_out_who_sigma_disabled(self) -> None:
+        directory = [
+            enrollment(1, 1, "7", "Ana Souza", active=True),
+            enrollment(2, 1, "8", "Ana Lima", active=False),
+        ]
+
+        self.assertEqual([p.name for p in search(directory, "ana")], ["Ana Souza"])
+
+    def test_leaves_them_out_of_the_apartment_search_too(self) -> None:
+        directory = [
+            enrollment(1, 1, "7", "Ana Souza", apartment="301", active=True),
+            enrollment(2, 1, "8", "Bruno Lima", apartment="301", active=False),
+        ]
+
+        self.assertEqual([p.name for p in search(directory, "-301")], ["Ana Souza"])
+
+    def test_keeps_somebody_sigma_does_not_know(self) -> None:
+        """Visitante cadastrado direto na facial: não saber não é estar inativo."""
+        directory = [enrollment(1, 1, "5", "Visitante Avulso", active=None)]
+
+        self.assertEqual([p.name for p in search(directory, "visitante")], ["Visitante Avulso"])
+
+    def test_the_disabled_never_take_a_place_in_the_limit(self) -> None:
+        directory = [enrollment(i, 1, str(i), f"Ana {i:02d}", active=False) for i in range(1, 30)]
+        directory.append(enrollment(99, 1, "99", "Ana Zeta", active=True))
+
+        self.assertEqual([p.name for p in search(directory, "ana", limit=5)], ["Ana Zeta"])
 
 
 class GroupPeopleTests(unittest.TestCase):

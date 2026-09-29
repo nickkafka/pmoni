@@ -5,6 +5,8 @@ export type ResidentMessage = {
   apartment: string | null
   block: string | null
   photo_url: string | null
+  /** Situação no Sigma. `null` quando o Sigma não conhece a pessoa — não é o mesmo que ativa. */
+  active: boolean | null
 }
 
 export type DeviceMessage = {
@@ -30,8 +32,11 @@ export type ConnectionStatus = 'connecting' | 'connected' | 'offline' | 'unavail
 
 export type Resident = {
   id: number
-  /** Enrollments are issued per device: the ID alone does not name a person. */
-  device_id: number
+  /**
+   * Enrollments are issued per device: the ID alone does not name a person.
+   * `null` for a visitor known only from Sigma, enrolled on no facial.
+   */
+  device_id: number | null
   employee_no: string
   name: string
   apartment: string | null
@@ -41,6 +46,8 @@ export type Resident = {
   rg: string | null
   has_photo: boolean
   synced_at: string | null
+  /** Situação no Sigma. `null` quando o Sigma não conhece a pessoa — não é o mesmo que ativa. */
+  active: boolean | null
 }
 
 export type SigmaIntegration = {
@@ -79,6 +86,8 @@ export type DirectoryPerson = {
   photo_id: number | null
   device_ids: number[]
   device_names: string[]
+  /** Situação no Sigma. `null` quando o Sigma não conhece a pessoa — não é o mesmo que ativa. */
+  active: boolean | null
 }
 
 export type Device = {
@@ -116,6 +125,11 @@ export type ImportAutomation = {
   last_run_at: string | null
   last_status: ImportStatus | null
   last_message: string | null
+  /** Confere de tempos em tempos se cada facial ganhou alguém desde a última importação. */
+  check_enabled: boolean
+  check_interval_minutes: number
+  last_check_at: string | null
+  last_check_message: string | null
 }
 
 export type SyncReport = {

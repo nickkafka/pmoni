@@ -128,6 +128,33 @@ recusa a gravar.
 e `unities` traz `unit="1"`, `block="TI"` — setor, não apartamento. Numa conta de
 condomínio o formato pode ser outro; vale conferir antes de assumir o mapeamento.
 
+## Fotos de visitantes e desativados (medido em 2026-09-28)
+
+Das 369 pessoas nas faciais, 66 não tinham foto em nenhuma delas — visitantes e
+pessoas já desativadas, cujo rosto o equipamento guarda só como template. O Sigma
+tem três lugares onde uma foto poderia estar, e só um responde ao token:
+
+| Fonte | Resultado |
+| --- | --- |
+| `photoUrl` / `photos` na lista de moradores | Sempre vazios (0 de 486) |
+| `GET /v1/accounts/{id}/dwellers/{dwellerId}/photo` (perfil) | **200** — link S3 assinado para 29 das 66 |
+| `GET /v3/accounts/{id}/dwellers/{dwellerId}/devices` (`facialImageUrl`, foto do dispositivo) | **403** |
+| `GET .../accessControl/accounts/{id}/people/{dwellerId}` (`foto_facial_sigma`) | 404 |
+
+Três detalhes que custaram a descobrir:
+
+- **A lista v1 só traz ativos.** `/v1/.../dwellers` devolveu 426 pessoas; `/v5/...
+  /dwellers?showDisabled=true`, 486. As 29 pessoas sem foto que "não existiam no
+  Sigma" estavam todas nessa diferença. A importação passou a usar a v5.
+- **O link da foto recusa o nosso token.** Ele vem assinado pelo S3; enviado com o
+  `Authorization` do Sigma, o S3 responde 400. Baixado sem cabeçalho, entrega o JPEG.
+- **Há foto em PNG.** Uma das 29; a rota da foto no pMoni passou a informar o tipo
+  pelo conteúdo.
+
+As 37 que seguem sem foto não têm foto de perfil no Sigma. A foto do dispositivo de
+acesso cobriria parte delas, mas exige que a Segware libere para o usuário de
+integração a rota `GET /v3/accounts/{accountId}/dwellers/{dwellerId}/devices`.
+
 ## A questão em aberto que decide a viabilidade
 
 **Qual campo do Sigma corresponde ao ID que a facial informa no evento?**

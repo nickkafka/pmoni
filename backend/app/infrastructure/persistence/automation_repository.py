@@ -38,12 +38,31 @@ class SqlAlchemyAutomationRepository(AutomationRepository):
         self._session.refresh(record)
         return self._to_entity(record)
 
+    def save_check(self, *, enabled: bool, interval_minutes: int) -> ImportAutomation:
+        record = self._record()
+        record.check_enabled = enabled
+        record.check_interval_minutes = interval_minutes
+        self._session.commit()
+        self._session.refresh(record)
+        return self._to_entity(record)
+
+    def record_check(self, *, finished_at: datetime, message: str) -> ImportAutomation:
+        record = self._record()
+        record.last_check_at = finished_at
+        record.last_check_message = message[:1024]
+        self._session.commit()
+        self._session.refresh(record)
+        return self._to_entity(record)
+
     def _record(self) -> ImportAutomationRecord:
         record = self._session.get(ImportAutomationRecord, ROW_ID)
         if record is None:
             # A database created by `Base.metadata.create_all`, as the tests do, has
             # the table but not the row the migration inserts.
-            record = ImportAutomationRecord(id=ROW_ID, enabled=False, run_at="03:00")
+            record = ImportAutomationRecord(
+                id=ROW_ID, enabled=False, run_at="03:00",
+                check_enabled=False, check_interval_minutes=15,
+            )
             self._session.add(record)
             self._session.commit()
             self._session.refresh(record)
@@ -57,6 +76,10 @@ class SqlAlchemyAutomationRepository(AutomationRepository):
             last_run_at=record.last_run_at,
             last_status=ImportStatus(record.last_status) if record.last_status else None,
             last_message=record.last_message,
+            check_enabled=record.check_enabled,
+            check_interval_minutes=record.check_interval_minutes,
+            last_check_at=record.last_check_at,
+            last_check_message=record.last_check_message,
         )
 
 

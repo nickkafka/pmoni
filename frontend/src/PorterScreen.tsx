@@ -35,6 +35,10 @@ function locationOf(event: AccessEventMessage): string | null {
   return resident.block ? `Apto ${resident.apartment} · Bloco ${resident.block}` : `Apto ${resident.apartment}`
 }
 
+function isInactive(event: AccessEventMessage): boolean {
+  return event.resident?.active === false
+}
+
 function Photo({
   event,
   size,
@@ -122,6 +126,9 @@ function CurrentEvent({ event }: { event: AccessEventMessage }) {
             {event.success ? 'Acesso liberado' : 'Acesso negado'}
           </span>
           <span className="current__device">{deviceOf(event)}</span>
+          {isInactive(event) && (
+            <span className="inactive-tag current__inactive">Inativo no Sigma</span>
+          )}
         </p>
         <p className="current__meta">
           {timeOf(event)}
@@ -168,6 +175,7 @@ function Preview({ at }: { at: PreviewAt }) {
         )}
       </div>
       <p className="preview__name">{resident?.name ?? 'Não cadastrado'}</p>
+      {isInactive(event) && <span className="inactive-tag preview__inactive">Inativo no Sigma</span>}
       <p className={`preview__location${location ? '' : ' preview__location--missing'}`}>
         {location ?? (resident ? 'Apartamento não cadastrado' : `ID ${event.employee_no ?? '—'}`)}
       </p>
@@ -200,13 +208,14 @@ function History({ events }: { events: AccessEventMessage[] }) {
       <ul className="history__list">
         {events.map((event) => (
           <li
-            key={`${event.device_id}:${event.external_id}`}
+            key={keyOf(event)}
             className="history__item"
             onMouseEnter={show(event)}
             onMouseLeave={() => setPreview(null)}
           >
             <Photo event={event} size="small" />
             <span className="history__name">{event.resident?.name ?? 'Não cadastrado'}</span>
+            {isInactive(event) && <span className="inactive-tag history__inactive">Inativo</span>}
             <span className="history__device">{deviceOf(event)}</span>
             <span className="history__time">{timeOf(event)}</span>
           </li>
@@ -240,9 +249,45 @@ function Clock() {
   return <time className="header__clock">{now.toLocaleTimeString('pt-BR')}</time>
 }
 
+/**
+ * Quanto tempo a passagem fica em destaque antes de descer para a faixa.
+ *
+ * A foto grande serve para o porteiro conferir quem acabou de passar; deixada na
+ * tela até a próxima passagem, ela fica exposta por minutos a quem estiver na
+ * guarita. Depois disso a pessoa segue na faixa, onde o hover ainda a amplia.
+ */
+const CURRENT_SECONDS = 10
+
+function keyOf(event: AccessEventMessage): string {
+  return `${event.device_id}:${event.external_id}`
+}
+
+/**
+ * Whether the latest passage is still inside its moment on screen.
+ *
+ * Timed from when it reached this screen rather than from `event_time`: the facial's
+ * clock is not this machine's, and a few seconds of drift would hide a passage
+ * before the porter ever saw it.
+ */
+function useFresh(latest: AccessEventMessage | undefined): boolean {
+  const key = latest ? keyOf(latest) : null
+  const [expired, setExpired] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (key === null) return
+    const timer = window.setTimeout(() => setExpired(key), CURRENT_SECONDS * 1000)
+    return () => window.clearTimeout(timer)
+  }, [key])
+
+  return key !== null && key !== expired
+}
+
 export default function PorterScreen() {
   const { events, status } = useAccessEventStream()
-  const [current, ...previous] = events
+  const [latest] = events
+  const fresh = useFresh(latest)
+  const current = fresh ? latest : undefined
+  const previous = fresh ? events.slice(1) : events
   const search = useResidentSearch()
 
   return (
@@ -267,7 +312,9 @@ export default function PorterScreen() {
         <section className="waiting">
           <p className="waiting__title">Aguardando movimento</p>
           <p className="waiting__hint">
-            A próxima pessoa que passar na facial aparece aqui.
+            {latest
+              ? 'A última passagem está na faixa abaixo. A próxima aparece aqui.'
+              : 'A próxima pessoa que passar na facial aparece aqui.'}
           </p>
         </section>
       )}

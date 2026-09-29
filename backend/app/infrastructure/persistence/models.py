@@ -53,6 +53,10 @@ class ImportAutomationRecord(Base):
     last_run_at: Mapped[datetime | None] = mapped_column(DateTime)
     last_status: Mapped[str | None] = mapped_column(String(16))
     last_message: Mapped[str | None] = mapped_column(String(1024))
+    check_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    check_interval_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=15)
+    last_check_at: Mapped[datetime | None] = mapped_column(DateTime)
+    last_check_message: Mapped[str | None] = mapped_column(String(1024))
 
 
 class ResidentRecord(Base):
@@ -71,7 +75,8 @@ class ResidentRecord(Base):
     __table_args__ = (UniqueConstraint("device_id", "employee_no", name="uq_residents_device_employee"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    device_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    # Nulo para o visitante que só existe no Sigma e não está em facial nenhuma.
+    device_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
     employee_no: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(128), nullable=False)
     apartment: Mapped[str | None] = mapped_column(String(32))
@@ -80,6 +85,11 @@ class ResidentRecord(Base):
     # então o porteiro acha a pessoa digitando com ou sem formatação.
     cpf: Mapped[str | None] = mapped_column(String(32))
     rg: Mapped[str | None] = mapped_column(String(32))
+    # Vem do Sigma. Nulo quando o Sigma não conhece a pessoa, que é diferente de
+    # ele dizer que ela está ativa.
+    active: Mapped[bool | None] = mapped_column(Boolean)
+    # O id do Sigma, que reconhece o visitante sem facial na importação seguinte.
+    sigma_id: Mapped[int | None] = mapped_column(Integer, index=True)
     photo: Mapped[bytes | None] = mapped_column(LargeBinary)
     photo_reference: Mapped[str | None] = mapped_column(String(256))
     synced_at: Mapped[datetime | None] = mapped_column(DateTime)
